@@ -15,20 +15,21 @@ class User:
                 Nothing.
         """
         self.username: str = username
-        self.password: str = password
+        self.__password: str = password
         self.role: str = role
         self.user_experience: User.UserExperience = self.UserExperience()
+        self.settings: User.Settings = self.Settings()
 
     class UserExperience:
         """
-            Store the User Experience data of the account.
+            Stores the User Experience data of the account.
         """
         def __init__(self) -> None:
             """
                 Initialises User Experience account data.
 
                 Parameters:
-                    Nothing.
+                    self (User.UserExperience()): the user experience data.
 
                 Returns:
                     Nothing.
@@ -39,6 +40,46 @@ class User:
             self.previous_page: str = 'Previous page'
             self.abort: str = 'Abort'
 
+    class Settings:
+        """
+            Stores the Settings data of the account.
+        """
+        def __init__(self) -> None:
+            """
+                Initialises Settings account data.
+
+                Parameters:
+                    self (User.Settings()): the user account data.
+
+                Returns:
+                    Nothing.
+            """
+            self.password_reminder = True
+
+    def is_password(self, entered_password: str) -> bool:
+        """
+            Verifies if the entered password is the same as the user password.
+
+            Parameters:
+                entered_password (str): the entered password to verify.
+
+            Returns:
+                A boolean depending on the parameter.
+        """
+        return True if entered_password == self.__password else False
+
+    def get_password(self) -> str:
+        """
+            Get the account password only if the current user is an Administrator.
+
+            Parameters:
+                self (User): the user account data.
+
+            Returns:
+                The password of the current user if the current user is an Administrator.
+        """
+        return self.__password if Core.user.role == 'Administrator' else ''
+
 class Core:
     """
         Stores boring, but important variables.
@@ -47,7 +88,7 @@ class Core:
     users: dict[str, User] = {
         'AlfredTheAdmin': User(
             username = 'AlfredTheAdmin',
-            password = 'WhyAreYouTryingToLogInMyAccount',
+            password = 'WhyAreYouTryingToLogInMyAccount?',
             role = 'Administrator'
         )
     }
@@ -75,7 +116,12 @@ class Characters:
     lowercase_letters: list[str] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
     uppercase_letters: list[str] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
     special_characters: list[str] = [' ', '!', '\"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?', '@', '[', '\\', ']', '^', '_', '`', '{', '|', '}', '~']
-    characters: list[str] = [*lowercase_letters, *uppercase_letters, *special_characters, *digits]
+    characters: list[str] = [
+        *lowercase_letters,
+        *uppercase_letters,
+        *special_characters,
+        *digits
+    ]
 
 try:
     from msvcrt import kbhit, getwch
@@ -108,14 +154,13 @@ def write(text: str) -> str:
         Returns:
             The string input that only includes allowed characters.
     """
+    error: bool = False
     while True:
-        show(text = text)
+        show(text = f'{'Input includes unrecognised character. Enter to rewrite.\n' if error else ''}{text}')
         answer: str = input('>>> ')
         if all(element in Characters.characters for element in answer):
             return answer
-        else:
-            show(text = 'Input includes unrecognised character. Enter to rewrite.')
-            input('>>> ')
+        error = True
 
 def information(text: str) -> None:
     """
@@ -187,7 +232,7 @@ def interface(text: str, elements: list[str]) -> str:
         else:
             information(text = 'Invalid answer!')
 
-def ask(text: str):
+def ask(text: str) -> bool:
     """
         Asks a close-ended question and returns the answer.
 
@@ -204,12 +249,29 @@ def ask(text: str):
         elif answer == Core.user.user_experience.negative:
             return False
         else:
-            information(text = f'You must provide an answer. {Core.user.user_experience.abort} is not a choice.')
+            information(text = f'You must provide an answer. \"{Core.user.user_experience.abort}\" is not a choice.')
 
 def verify_password(username: str) -> bool:
+    """
+        Verifies the password of the user.
+
+        Parameters:
+            username (str): the username of the user to check.
+
+        Returns:
+            A boolean depending on whether the user password was entered, skipped, or aborted.
+    """
     if username not in Core.users:
         return False
-    return True
+    if Core.users[username].is_password(entered_password = ''):
+        return True
+    while True:
+        answer: str = write(text = f'Enter the password of {username} for security, or \"{Core.user.user_experience.abort}\" to abort.')
+        if answer == Core.user.user_experience.abort:
+            return False
+        elif Core.users[username].is_password(entered_password = answer):
+            return True
+        information(text = f'Wrong password!{f' The password is {Core.users[username].get_password()} to remind you.' if Core.user.role == 'Administrator' and Core.users[username].settings.password_reminder else ''}')
 
 if __name__ == '__main__':
     """
@@ -241,11 +303,11 @@ if __name__ == '__main__':
             user_input: str = write(text = f'{datetime.now().strftime('%A %d %B %Y' + (', %H:%M:%S' if Unique.lock_screen_time == True else ''))}\nEnter \"{Core.user.user_experience.abort}\" to turn off {Unique.device_name}, or anything else to continue.')
         if (user_input != Core.user.user_experience.abort) and (user_input != ''):
             while True:
-                current_user: str = write(text = f'Enter the Core.user you want to log in, or \"Create account\" to create an account, or \"{Core.user.user_experience.abort}\" to turn off {Unique.device_name}.')
+                current_user: str = write(text = f'Enter the user you want to log in, or \"Create account\" to create an account, or \"{Core.user.user_experience.abort}\" to turn off {Unique.device_name}.')
                 if current_user in Core.users.keys():
-                    verify_password(username = current_user)
-                    # TBA
-                    interface(text = 'Do you prefer this or that?', elements = ['This', 'That', 'No, this', 'That!!', 'vro', 'What?', 'Are u serious', '(slowed x reverb)', 'choice1', 'choice2', 'SuperTankh'])
+                    if verify_password(username = current_user):
+                        # placeholder
+                        interface(text = 'Do you prefer this or that?', elements = ['This', 'That', 'No, this', 'That!!', 'vro', 'What?', 'Are u serious', '(slowed x reverb)', 'choice1', 'choice2', 'Super'])
                 elif current_user == Core.user.user_experience.abort:
                     break
                 elif current_user == 'Create account':
@@ -254,7 +316,7 @@ if __name__ == '__main__':
                         information(text = 'This username is already taken.')
                     else:
                         account_role: str = interface(text = 'What type of account do you want to make?', elements = ['Administrator', 'User', 'Guest'])
-                        if account_role == 'Administrator' and all('Administrator' == Core.users[current_user].role for current_user in Core.users):
+                        if account_role == 'Administrator' and any('Administrator' == Core.users[current_user].role for current_user in Core.users):
                             information(text = f'Administrator account already exists')
                         elif account_role in ['User', 'Guest']:
                             if account_role == 'Guest':
