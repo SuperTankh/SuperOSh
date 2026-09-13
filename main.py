@@ -1,3 +1,9 @@
+"""
+    This file englobes all the classes, variables, and functions of the OS.
+"""
+from datetime import datetime
+from time import sleep
+
 class User:
     """
         Stores the data of a user account.
@@ -66,19 +72,19 @@ class User:
             Returns:
                 A boolean depending on the parameter.
         """
-        return True if entered_password == self.__password else False
+        return entered_password == self.__password
 
     def get_password(self) -> str:
         """
-            Get the account password only if the current user is an Administrator.
+            Get the account password only if the current user is the user or an Administrator, and if the user enabled password_reminder.
 
             Parameters:
                 self (User): the user account data.
 
             Returns:
-                The password of the current user if the current user is an Administrator.
+                The password of the current user.
         """
-        return self.__password if Core.user.role == 'Administrator' else ''
+        return self.__password if (Core.user.role == 'Administrator' or Core.user == self) and self.settings.password_reminder else ''
 
 class Core:
     """
@@ -113,9 +119,19 @@ class Characters:
         Stores main characters, such as letters, digits and some special characters.
     """
     digits: list[str] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-    lowercase_letters: list[str] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
-    uppercase_letters: list[str] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-    special_characters: list[str] = [' ', '!', '\"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?', '@', '[', '\\', ']', '^', '_', '`', '{', '|', '}', '~']
+    lowercase_letters: list[str] = [
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+        'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'
+    ]
+    uppercase_letters: list[str] = [
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+        'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
+    ]
+    special_characters: list[str] = [
+        ' ', '!', '\"', '#', '$', '%', '&', '\'', '(', ')', '*',
+        '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?',
+        '@', '[', '\\', ']', '^', '_', '`', '{', '|', '}', '~'
+    ]
     characters: list[str] = [
         *lowercase_letters,
         *uppercase_letters,
@@ -128,9 +144,39 @@ try:
     Core.keyboard_control = True
 except ModuleNotFoundError:
     def kbhit() -> bool:
+        """
+            Is the puppet replacement for kbhit(). Does nothing interesting.
+
+            Parameters:
+                Nothing.
+
+            Returns:
+                A boolean: False.
+        """
         return False
     def getwch() -> str:
+        """
+            Is the puppet replacement for getwch(). Does nothing interesting.
+
+            Parameters:
+                Nothing.
+
+            Returns:
+                A string: the Enter character.
+        """
         return '\r'
+
+def enumeration(elements: list[str]) -> str:
+    """
+        Transforms a plain list into an enumeration of this list.
+
+        Parameters:
+            elements (list[str]): the list of elements.
+
+        Returns:
+            A string of the enumeration of the list.
+    """
+    return '\n'.join(f'{digit}. {element}' for digit, element in enumerate[str](elements))
 
 def show(text: str) -> None:
     """
@@ -154,13 +200,13 @@ def write(text: str) -> str:
         Returns:
             The string input that only includes allowed characters.
     """
-    error: bool = False
+    error: str = ''
     while True:
-        show(text = f'{'Input includes unrecognised character. Enter to rewrite.\n' if error else ''}{text}')
+        show(text = f'{error}{text}')
         answer: str = input('>>> ')
         if all(element in Characters.characters for element in answer):
             return answer
-        error = True
+        error = 'Input includes unrecognised character.\n'
 
 def information(text: str) -> None:
     """
@@ -185,7 +231,7 @@ def interface(text: str, elements: list[str]) -> str:
         Parameters:
             text (str): the text that will be shown.
             elements (list[str]): all possible choices in a raw list.
-        
+
         Returns:
             The chosen string element in the list, abort is part of the list and can also be returned.
     """
@@ -204,19 +250,14 @@ def interface(text: str, elements: list[str]) -> str:
         current_page: list[str] = pages[page_index]
         current_page[element_index] += ' <--'
         if Core.keyboard_control:
-            show(text = f'{text}\n{'\n'.join(f'{digit}. {element}' for digit, element in enumerate(current_page))}')
+            show(text = f'{text}\n{enumeration(elements = current_page)}')
             action: str = getwch()
         else:
-            action: str = write(text = f'{text}\n{'\n'.join(f'{digit}. {element}' for digit, element in enumerate(current_page))}')
+            action: str = write(text = f'{text}\n{enumeration(elements = current_page)}')
         current_page[element_index] = current_page[element_index][0:-4]
         if action in [*Characters.digits] + (['\r', '\b'] if Core.keyboard_control else ['']):
-            choice: int = element_index if action == ('\r' if Core.keyboard_control else '') else int(action) if action in Characters.digits else 0
-            if choice == 0:
-                action = Core.user.user_experience.abort if page_index == 0 else Core.user.user_experience.previous_page
-            elif 1 <= choice <= 8 and choice <= len(current_page) - 1:
-                return current_page[choice]
-            elif choice == 9:
-                action = Core.user.user_experience.next_page
+            choice: int = int(action) if action in Characters.digits else 0 if action == '\b' else element_index
+            action = Core.user.user_experience.next_page if choice == 9 else (Core.user.user_experience.abort if page_index == 0 else Core.user.user_experience.previous_page) if choice == 0 else current_page[choice] if 1 <= choice <= 8 and choice <= len(current_page) - 1 else ''
         if (action in Unique.movement_keys['right'] or action == Core.user.user_experience.next_page) and page_index < len(pages)-1:
             element_index = 0
             page_index += 1
@@ -265,59 +306,68 @@ def verify_password(username: str) -> bool:
         return False
     if Core.users[username].is_password(entered_password = ''):
         return True
+    tries: int = 0
     while True:
         answer: str = write(text = f'Enter the password of {username} for security, or \"{Core.user.user_experience.abort}\" to abort.')
         if answer == Core.user.user_experience.abort:
             return False
-        elif Core.users[username].is_password(entered_password = answer):
+        if Core.users[username].is_password(entered_password = answer):
             return True
-        information(text = f'Wrong password!{f' The password is {Core.users[username].get_password()} to remind you.' if Core.user.role == 'Administrator' and Core.users[username].settings.password_reminder else ''}')
+        information(text = 'The password is incorrect.')
+        if Core.users[username].settings.password_reminder:
+            information(text = f'The password of the account is {Core.users[username].get_password()} to remind you.')
+        tries += 1
+        if tries >= 4:
+            seconds: int = tries*5
+            while seconds > 0:
+                show(text = f'You have incorrectly entered the password. You have been blocked for {seconds} seconds.')
+                seconds -= 1
+                sleep(1)
+                while kbhit():
+                    getwch()
 
 if __name__ == '__main__':
-    """
-        Encapsulates the main OS. It is not a function to prevent application files to call OS.
-    """
-    from datetime import datetime
-    from time import sleep
     while True:
         write(text = f'Enter to turn on {Unique.device_name}.')
-        if Core.keyboard_control:
-            time_left: float = Unique.lock_screen_timeout
-            user_input: str = ''
-            while time_left > 0.0:
-                show(text = f'{datetime.now().strftime('%A %d %B %Y' + (', %H:%M:%S' if Unique.lock_screen_time == True else ''))}\nEnter \"{Core.user.user_experience.abort}\" or wait {time_left:.2f} seconds to turn off {Unique.device_name}, or anything else to continue.\n>>> {user_input}')
-                if kbhit():
-                    character: str = getwch()
-                    time_left = Unique.lock_screen_timeout
-                    if character == '\r':
-                        break
-                    elif character == '\b':
-                        user_input = user_input[0:-1]
-                    elif character in Characters.characters:
-                        user_input += character
-                    else:
-                        information(text = 'Invalid character!')
-                time_left -= 0.01
-                sleep(0.01)
-        else:
-            user_input: str = write(text = f'{datetime.now().strftime('%A %d %B %Y' + (', %H:%M:%S' if Unique.lock_screen_time == True else ''))}\nEnter \"{Core.user.user_experience.abort}\" to turn off {Unique.device_name}, or anything else to continue.')
+        time_left: float = Unique.lock_screen_timeout
+        time_to_add: float = 0.0
+        time: str = datetime.now().strftime('%A %d %B %Y' + (', %H:%M:%S' if Unique.lock_screen_time else ''))
+        user_input: str = '' if Core.keyboard_control else write(text = f'{time}\nEnter \"{Core.user.user_experience.abort}\" to turn off {Unique.device_name}, or anything else to continue.')
+        while Core.keyboard_control and time_left > 0.0:
+            show(text = f'{time}\nEnter \"{Core.user.user_experience.abort}\" or wait {time_left:.2f} seconds to turn off {Unique.device_name}, or anything else to continue.\n>>> {user_input}')
+            if kbhit():
+                character: str = getwch()
+                time_left += time_to_add
+                time_to_add -= time_to_add
+                if character == '\r':
+                    break
+                elif character == '\b':
+                    user_input = user_input[0:-1]
+                elif character in Characters.characters:
+                    user_input += character
+                else:
+                    information(text = 'Invalid character!')
+            time_left -= 0.01
+            time_to_add += 0.01
+            sleep(0.01)
         if (user_input != Core.user.user_experience.abort) and (user_input != ''):
             while True:
                 current_user: str = write(text = f'Enter the user you want to log in, or \"Create account\" to create an account, or \"{Core.user.user_experience.abort}\" to turn off {Unique.device_name}.')
-                if current_user in Core.users.keys():
+                if current_user in Core.users:
                     if verify_password(username = current_user):
-                        # placeholder
+                        Core.user = Core.users[Core.user.username]
+						# placeholder
                         interface(text = 'Do you prefer this or that?', elements = ['This', 'That', 'No, this', 'That!!', 'vro', 'What?', 'Are u serious', '(slowed x reverb)', 'choice1', 'choice2', 'Super'])
                 elif current_user == Core.user.user_experience.abort:
                     break
                 elif current_user == 'Create account':
                     new_username: str = write(text = 'What should be the username of your new account?')
-                    if new_username in Core.users.keys():
+                    if new_username in Core.users:
                         information(text = 'This username is already taken.')
                     else:
-                        account_role: str = interface(text = 'What type of account do you want to make?', elements = ['Administrator', 'User', 'Guest'])
-                        if account_role == 'Administrator' and any('Administrator' == Core.users[current_user].role for current_user in Core.users):
-                            information(text = f'Administrator account already exists')
+                        account_role: str = interface(text = 'What role do you want to have?', elements = ['Administrator', 'User', 'Guest'])
+                        if account_role == 'Administrator' and any('Administrator' == user.role for user in Core.users.values()):
+                            information(text = 'Administrator account already exists')
                         elif account_role in ['User', 'Guest']:
                             if account_role == 'Guest':
                                 information(text = 'The account will be deleted on log out.')
