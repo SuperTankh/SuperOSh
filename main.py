@@ -23,6 +23,7 @@ class User:
         self.username: str = username
         self.__password: str = password
         self.role: str = role
+        self.__new: bool = True
         self.user_experience: User.UserExperience = self.UserExperience()
         self.settings: User.Settings = self.Settings()
 
@@ -61,12 +62,19 @@ class User:
                     Nothing.
             """
             self.password_reminder = True
+            self.movement_keys: dict[str, list[str]] = {
+                'up': [],
+                'down': [],
+                'right': [],
+                'left': []
+            }
 
     def is_password(self, entered_password: str) -> bool:
         """
             Verifies if the entered password is the same as the user password.
 
             Parameters:
+                self (User): the user account data.
                 entered_password (str): the entered password to verify.
 
             Returns:
@@ -85,6 +93,31 @@ class User:
                 The password of the current user.
         """
         return self.__password if (Core.user.role == 'Administrator' or Core.user == self) and self.settings.password_reminder else ''
+
+    def get_new(self) -> bool:
+        """
+            Sends the state of the account, if the account is \"new\" or not.
+
+            Parameters:
+                self (User): the user account data.
+
+            Returns:
+                The state of the account.
+        """
+        return self.__new
+
+    def set_new(self) -> None:
+        """
+            To prevent malicious applications to change self.__new, only change it once.
+
+            Parameters:
+                self (User): the user account data.
+
+            Returns:
+                Nothing.
+        """
+        if self.__new:
+            self.__new = False
 
 class Core:
     """
@@ -107,31 +140,15 @@ class Unique:
     device_name: str = 'SuperDeviceh'
     lock_screen_timeout: float = 4.0
     lock_screen_time: bool = True
-    movement_keys: dict[str, list[str]] = {
-        'up': ['z', 'Z'],
-        'down': ['s', 'S'],
-        'right': ['d', 'D'],
-        'left': ['q', 'Q']
-    }
 
 class Characters:
     """
         Stores main characters, such as letters, digits and some special characters.
     """
-    digits: list[str] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-    lowercase_letters: list[str] = [
-        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-        'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'
-    ]
-    uppercase_letters: list[str] = [
-        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-        'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
-    ]
-    special_characters: list[str] = [
-        ' ', '!', '\"', '#', '$', '%', '&', '\'', '(', ')', '*',
-        '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?',
-        '@', '[', '\\', ']', '^', '_', '`', '{', '|', '}', '~'
-    ]
+    digits: list[str] = list('0123456789')
+    lowercase_letters: list[str] = list('abcdefghijklmnopqrstuvwxyz')
+    uppercase_letters: list[str] = list('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+    special_characters: list[str] = list(' !\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~')
     characters: list[str] = [
         *lowercase_letters,
         *uppercase_letters,
@@ -141,7 +158,6 @@ class Characters:
 
 try:
     from msvcrt import kbhit, getwch
-    Core.keyboard_control = True
 except ModuleNotFoundError:
     def kbhit() -> bool:
         """
@@ -258,15 +274,15 @@ def interface(text: str, elements: list[str]) -> str:
         if action in [*Characters.digits] + (['\r', '\b'] if Core.keyboard_control else ['']):
             choice: int = int(action) if action in Characters.digits else 0 if action == '\b' else element_index
             action = Core.user.user_experience.next_page if choice == 9 else (Core.user.user_experience.abort if page_index == 0 else Core.user.user_experience.previous_page) if choice == 0 else current_page[choice] if 1 <= choice <= 8 and choice <= len(current_page) - 1 else ''
-        if (action in Unique.movement_keys['right'] or action == Core.user.user_experience.next_page) and page_index < len(pages)-1:
+        if (action in Core.user.settings.movement_keys['right'] or action == Core.user.user_experience.next_page) and page_index < len(pages)-1:
             element_index = 0
             page_index += 1
-        elif (action in Unique.movement_keys['left'] or action == Core.user.user_experience.previous_page) and page_index > 0:
+        elif (action in Core.user.settings.movement_keys['left'] or action == Core.user.user_experience.previous_page) and page_index > 0:
             element_index = 0
             page_index -= 1
-        elif (action in Unique.movement_keys['up']) and (element_index > 0):
+        elif (action in Core.user.settings.movement_keys['up']) and (element_index > 0):
             element_index -= 1
-        elif (action in Unique.movement_keys['down']) and (element_index < len(current_page)-1):
+        elif (action in Core.user.settings.movement_keys['down']) and (element_index < len(current_page)-1):
             element_index += 1
         elif action in current_page:
             return action
@@ -287,10 +303,9 @@ def ask(text: str) -> bool:
         answer: str = interface(text = text, elements = [Core.user.user_experience.positive,Core.user.user_experience.negative])
         if answer == Core.user.user_experience.positive:
             return True
-        elif answer == Core.user.user_experience.negative:
+        if answer == Core.user.user_experience.negative:
             return False
-        else:
-            information(text = f'You must provide an answer. \"{Core.user.user_experience.abort}\" is not a choice.')
+        information(text = f'You must provide an answer. \"{Core.user.user_experience.abort}\" is not a choice.')
 
 def verify_password(username: str) -> bool:
     """
@@ -326,55 +341,98 @@ def verify_password(username: str) -> bool:
                 while kbhit():
                     getwch()
 
-if __name__ == '__main__':
+def create_account() -> str:
+    """
+        Creates a user account.
+
+        Parameters:
+            Nothing.
+
+        Returns:
+            The username of the new account, or an empty string.
+    """
+    while True:
+        new_username: str = write(text = f'What will be the username of the account? Enter \"{Core.user.user_experience.abort}\" to cancel.')
+        if new_username == Core.user.user_experience.abort:
+            return ''
+        if new_username in Core.users:
+            information(text = 'This username is already taken.')
+        else:
+            account_role: str = interface(text = 'What role do you want to have?', elements = ['Administrator', 'User', 'Guest'])
+            if account_role == 'Administrator' and any('Administrator' == user.role for user in Core.users.values()):
+                information(text = 'Administrator account already exists')
+            elif account_role in ['User', 'Guest']:
+                if account_role == 'Guest':
+                    information(text = 'The account will be deleted on log out.')
+                while True:
+                    new_password: str = write(text = 'What should be password of the account?')
+                    if new_password != '' and write(text = 'Enter again your password for security.') == new_password:
+                        Core.users[new_username] = User(username = new_username, password = new_password, role = account_role)
+                        return new_username
+
+def lock_screen() -> None:
+    """
+        Contains the lock screen of the OS.
+
+        Parameters:
+            Nothing.
+
+        Returns:
+            Nothing.
+    """
     while True:
         write(text = f'Enter to turn on {Unique.device_name}.')
-        time_left: float = Unique.lock_screen_timeout
-        time_to_add: float = 0.0
         time: str = datetime.now().strftime('%A %d %B %Y' + (', %H:%M:%S' if Unique.lock_screen_time else ''))
-        user_input: str = '' if Core.keyboard_control else write(text = f'{time}\nEnter \"{Core.user.user_experience.abort}\" to turn off {Unique.device_name}, or anything else to continue.')
-        while Core.keyboard_control and time_left > 0.0:
-            show(text = f'{time}\nEnter \"{Core.user.user_experience.abort}\" or wait {time_left:.2f} seconds to turn off {Unique.device_name}, or anything else to continue.\n>>> {user_input}')
-            if kbhit():
-                character: str = getwch()
-                time_left += time_to_add
-                time_to_add -= time_to_add
-                if character == '\r':
-                    break
-                elif character == '\b':
-                    user_input = user_input[0:-1]
-                elif character in Characters.characters:
-                    user_input += character
-                else:
-                    information(text = 'Invalid character!')
-            time_left -= 0.01
-            time_to_add += 0.01
-            sleep(0.01)
-        if (user_input != Core.user.user_experience.abort) and (user_input != ''):
-            while True:
-                current_user: str = write(text = f'Enter the user you want to log in, or \"Create account\" to create an account, or \"{Core.user.user_experience.abort}\" to turn off {Unique.device_name}.')
-                if current_user in Core.users:
-                    if verify_password(username = current_user):
-                        Core.user = Core.users[Core.user.username]
-						# placeholder
-                        interface(text = 'Do you prefer this or that?', elements = ['This', 'That', 'No, this', 'That!!', 'vro', 'What?', 'Are u serious', '(slowed x reverb)', 'choice1', 'choice2', 'Super'])
-                elif current_user == Core.user.user_experience.abort:
-                    break
-                elif current_user == 'Create account':
-                    new_username: str = write(text = 'What should be the username of your new account?')
-                    if new_username in Core.users:
-                        information(text = 'This username is already taken.')
+        if Core.keyboard_control:
+            user_input: str = ''
+            time_left: float = Unique.lock_screen_timeout
+            time_to_add: float = 0.0
+            while time_left > 0.0:
+                show(text = f'{time}\nEnter \"{Core.user.user_experience.abort}\" or wait {time_left:.2f} seconds to turn off {Unique.device_name}, or anything else to continue.\n>>> {user_input}')
+                if kbhit():
+                    character: str = getwch()
+                    time_left += time_to_add
+                    time_to_add -= time_to_add
+                    if character == '\r':
+                        break
+                    if character == '\b':
+                        user_input = user_input[0:-1]
+                    elif character in Characters.characters:
+                        user_input += character
                     else:
-                        account_role: str = interface(text = 'What role do you want to have?', elements = ['Administrator', 'User', 'Guest'])
-                        if account_role == 'Administrator' and any('Administrator' == user.role for user in Core.users.values()):
-                            information(text = 'Administrator account already exists')
-                        elif account_role in ['User', 'Guest']:
-                            if account_role == 'Guest':
-                                information(text = 'The account will be deleted on log out.')
-                            while True:
-                                new_password: str = write(text = 'What should be password of the account?')
-                                if new_password != '' and write(text = 'Enter again your password for security.') == new_password:
-                                    Core.users[new_username] = User(username = new_username, password = new_password, role = account_role)
-                                    break
-                else:
-                    information(text = 'Account does not exist.')
+                        information(text = 'Invalid character!')
+                time_left -= 0.01
+                time_to_add += 0.01
+                sleep(0.01)
+        else:
+            user_input: str = write(text = f'{time}\nEnter \"{Core.user.user_experience.abort}\" to turn off {Unique.device_name}, or anything else to continue.')
+        if user_input not in (Core.user.user_experience.abort, ''):
+            break
+
+if __name__ == '__main__':
+    while True:
+        lock_screen()
+        while True:
+            current_user: str = write(text = f'Enter the user you want to log in, or \"Create account\" to create an account, or \"{Core.user.user_experience.abort}\" to turn off {Unique.device_name}.')
+            if current_user == Core.user.user_experience.abort:
+                break
+            if current_user in Core.users and verify_password(username = current_user):
+                Core.user = Core.users[Core.user.username]
+                if Core.user.get_new():
+                    information(text = f'Welcome to SuperOSh, {Core.user.username}!')
+                    information(text = 'Let us get you started quickly. Answer to a few questions first before accessing SuperOSh.')
+                    for keybind in Core.user.settings.movement_keys:
+                        while True:
+                            new_key: str = write(text = f'Which key should be assigned to the action \"{keybind}\"?')
+                            if len(new_key) != 1 or new_key not in [*Characters.lowercase_letters, *Characters.uppercase_letters]:
+                                information(text = 'The key should only be a single letter')
+                            else:
+                                Core.user.settings.movement_keys[keybind] = [new_key.lower(), new_key.upper()]
+                                break
+                    Core.user.set_new()
+                interface(text = 'Do you prefer this or that?', elements = ['This', 'That', 'No, this', 'That!!', 'vro', 'What?', 'Are u serious', '(slowed x reverb)', 'choice1', 'choice2', 'Super'])
+                # placeholder
+            elif current_user == 'Create account':
+                create_account()
+            else:
+                information(text = 'Account does not exist.')
