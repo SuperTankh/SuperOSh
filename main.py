@@ -3,6 +3,9 @@
 """
 from datetime import datetime
 from time import sleep
+from typing import Any, Union
+from pathlib import Path
+from importlib import util
 
 class User:
     """
@@ -13,9 +16,9 @@ class User:
             Initialises account data.
 
             Parameters:
-                username (str): the username of the account.
-                password (str): the password of the account.
-                role (str): the permissions role of the account.
+                username (str): The username of the account.
+                password (str): The password of the account.
+                role (str): The permissions role of the account.
 
             Returns:
                 Nothing.
@@ -26,6 +29,25 @@ class User:
         self.__new: bool = True
         self.user_experience: User.UserExperience = self.UserExperience()
         self.settings: User.Settings = self.Settings()
+        self.identity: User.Identity = self.Identity()
+
+    class Identity:
+        """
+            Stores the Account data of the account.
+        """
+
+        def __init__(self) -> None:
+            """
+                Initialises Identity account data.
+
+                Parameters:
+                    self (User.Account()): The Account data.
+
+                Returns:
+                    Nothing.
+            """
+            self.name: str = 'User'
+            self.age: int = 16
 
     class UserExperience:
         """
@@ -36,7 +58,7 @@ class User:
                 Initialises User Experience account data.
 
                 Parameters:
-                    self (User.UserExperience()): the user experience data.
+                    self (User.UserExperience()): The user experience data.
 
                 Returns:
                     Nothing.
@@ -56,7 +78,7 @@ class User:
                 Initialises Settings account data.
 
                 Parameters:
-                    self (User.Settings()): the user account data.
+                    self (User.Settings()): The user account data.
 
                 Returns:
                     Nothing.
@@ -68,14 +90,15 @@ class User:
                 'right': [],
                 'left': []
             }
+            self.home_screen_order: list[Union[str, dict[str, Union[list[str], str]]]] = []
 
     def is_password(self, entered_password: str) -> bool:
         """
             Verifies if the entered password is the same as the user password.
 
             Parameters:
-                self (User): the user account data.
-                entered_password (str): the entered password to verify.
+                self (User): The user account data.
+                entered_password (str): The entered password to verify.
 
             Returns:
                 A boolean depending on the parameter.
@@ -87,7 +110,7 @@ class User:
             Get the account password only if the current user is the user or an Administrator, and if the user enabled password_reminder.
 
             Parameters:
-                self (User): the user account data.
+                self (User): The user account data.
 
             Returns:
                 The password of the current user.
@@ -99,7 +122,7 @@ class User:
             Sends the state of the account, if the account is \"new\" or not.
 
             Parameters:
-                self (User): the user account data.
+                self (User): The user account data.
 
             Returns:
                 The state of the account.
@@ -111,7 +134,7 @@ class User:
             To prevent malicious applications to change self.__new, only change it once.
 
             Parameters:
-                self (User): the user account data.
+                self (User): The user account data.
 
             Returns:
                 Nothing.
@@ -129,9 +152,10 @@ class Core:
             username = 'AlfredTheAdmin',
             password = 'WhyAreYouTryingToLogInMyAccount?',
             role = 'Administrator'
-        )
+        ),
     }
     user: User = users['AlfredTheAdmin']
+    applications: dict[str, dict[str, Any]] = {}
 
 class Unique:
     """
@@ -145,10 +169,10 @@ class Characters:
     """
         Stores main characters, such as letters, digits and some special characters.
     """
-    digits: list[str] = list('0123456789')
-    lowercase_letters: list[str] = list('abcdefghijklmnopqrstuvwxyz')
-    uppercase_letters: list[str] = list('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
-    special_characters: list[str] = list(' !\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~')
+    digits: list[str] = list[str]('0123456789')
+    lowercase_letters: list[str] = list[str]('abcdefghijklmnopqrstuvwxyz')
+    uppercase_letters: list[str] = list[str]('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+    special_characters: list[str] = list[str](' !\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~')
     characters: list[str] = [
         *lowercase_letters,
         *uppercase_letters,
@@ -178,28 +202,16 @@ except ModuleNotFoundError:
                 Nothing.
 
             Returns:
-                A string: the Enter character.
+                A string: The Enter character.
         """
         return '\r'
-
-def enumeration(elements: list[str]) -> str:
-    """
-        Transforms a plain list into an enumeration of this list.
-
-        Parameters:
-            elements (list[str]): the list of elements.
-
-        Returns:
-            A string of the enumeration of the list.
-    """
-    return '\n'.join(f'{digit}. {element}' for digit, element in enumerate[str](elements))
 
 def show(text: str) -> None:
     """
         Clears the terminal and shows a text, replaces print().
 
         Parameters:
-            text (str): the text that will be printed in the terminal
+            text (str): The text that will be printed in the terminal
 
         Returns:
             Nothing.
@@ -211,7 +223,7 @@ def write(text: str) -> str:
         Shows a text and awaits an input that only has allowed characters and returns it, replaces input().
 
         Parameters:
-            text (str): the text that will be shown.
+            text (str): The text that will be shown.
 
         Returns:
             The string input that only includes allowed characters.
@@ -229,7 +241,7 @@ def information(text: str) -> None:
         Shows a text and awaits any input to continue.
 
         Parameters:
-            text (str): the text that will be shown.
+            text (str): The text that will be shown.
 
         Returns:
             Nothing.
@@ -245,8 +257,8 @@ def interface(text: str, elements: list[str]) -> str:
         Is the main function to display multiple choices, and only exit once anything has been chosen.
 
         Parameters:
-            text (str): the text that will be shown.
-            elements (list[str]): all possible choices in a raw list.
+            text (str): The text that will be shown.
+            elements (list[str]): All possible choices in a raw list.
 
         Returns:
             The chosen string element in the list, abort is part of the list and can also be returned.
@@ -266,10 +278,10 @@ def interface(text: str, elements: list[str]) -> str:
         current_page: list[str] = pages[page_index]
         current_page[element_index] += ' <--'
         if Core.keyboard_control:
-            show(text = f'{text}\n{enumeration(elements = current_page)}')
+            show(text = text + '\n' + '\n'.join(f'{digit}. {element}' for digit, element in enumerate[str](current_page)))
             action: str = getwch()
         else:
-            action: str = write(text = f'{text}\n{enumeration(elements = current_page)}')
+            action: str = write(text = text + '\n' + '\n'.join(f'{digit}. {element}' for digit, element in enumerate[str](current_page)))
         current_page[element_index] = current_page[element_index][0:-4]
         if action in [*Characters.digits] + (['\r', '\b'] if Core.keyboard_control else ['']):
             choice: int = int(action) if action in Characters.digits else 0 if action == '\b' else element_index
@@ -294,25 +306,71 @@ def ask(text: str) -> bool:
         Asks a close-ended question and returns the answer.
 
         Parameters:
-            text (str): the text that will be shown.
+            text (str): The text that will be shown.
 
         Returns:
             The answer of the question, which is either positive or negative.
     """
     while True:
-        answer: str = interface(text = text, elements = [Core.user.user_experience.positive,Core.user.user_experience.negative])
+        answer: str = interface(text = text, elements = [Core.user.user_experience.positive, Core.user.user_experience.negative])
         if answer == Core.user.user_experience.positive:
             return True
         if answer == Core.user.user_experience.negative:
             return False
         information(text = f'You must provide an answer. \"{Core.user.user_experience.abort}\" is not a choice.')
 
+def applications_scan() -> None:
+    """
+        Scans the folder for files ending with App.py, verifies the file complies and adds the application in the OS.
+
+        Parameters:
+            Nothing.
+
+        Returns:
+            Nothing.
+    """
+    for file in Path(__file__).parent.glob('*App.py'):
+        spec = util.spec_from_file_location(file.stem, file)
+        if spec is None:
+            continue
+        module = util.module_from_spec(spec)
+        loader = spec.loader
+        if loader is None:
+            continue
+        loader.exec_module(module)
+        if not hasattr(module, 'application'):
+            continue
+        application = module.application
+        if not isinstance(application, dict):
+            continue
+        for element in ['name', 'description', 'version', 'visual', 'developer', 'age', 'main']:
+            if element not in application:
+                continue
+            if not isinstance(application[element], str):
+                continue
+        Core.applications[application['name']] = application
+
+def application_check(application_name: str) -> bool:
+    """
+        Checks if the application can be opened or read.
+
+        Parameters:
+            application_name (str): The application.
+
+        Returns:
+            A boolean.
+    """
+    if Core.applications[application_name]['age'] < Core.user.identity.age:
+        return True
+    information(text = 'You do not have the required age to use this application.')
+    return False
+
 def verify_password(username: str) -> bool:
     """
         Verifies the password of the user.
 
         Parameters:
-            username (str): the username of the user to check.
+            username (str): The username of the user to check.
 
         Returns:
             A boolean depending on whether the user password was entered, skipped, or aborted.
@@ -361,14 +419,15 @@ def create_account() -> str:
             account_role: str = interface(text = 'What role do you want to have?', elements = ['Administrator', 'User', 'Guest'])
             if account_role == 'Administrator' and any('Administrator' == user.role for user in Core.users.values()):
                 information(text = 'Administrator account already exists')
-            elif account_role in ['User', 'Guest']:
+            else:
                 if account_role == 'Guest':
                     information(text = 'The account will be deleted on log out.')
-                while True:
-                    new_password: str = write(text = 'What should be password of the account?')
-                    if new_password != '' and write(text = 'Enter again your password for security.') == new_password:
-                        Core.users[new_username] = User(username = new_username, password = new_password, role = account_role)
-                        return new_username
+                new_password: str = write(text = 'What should be password of the account?')
+                if new_password != '' and write(text = 'Enter again your password for security.') == new_password:
+                    Core.users[new_username] = User(username = new_username, password = new_password, role = account_role)
+                    for item in Core.applications:
+                        Core.users[new_username].settings.home_screen_order.append(item)
+                    return new_username
 
 def lock_screen() -> None:
     """
@@ -409,7 +468,52 @@ def lock_screen() -> None:
         if user_input not in (Core.user.user_experience.abort, ''):
             break
 
+def home_screen() -> None:
+    """
+        Contains the home screen of the OS.
+
+        Parameters:
+            Nothing.
+
+        Returns:
+            Nothing.
+    """
+    current_order: list[Union[str, dict[str, Union[list[str], str]]]] = list(Core.user.settings.home_screen_order)
+    folder_stack: list[tuple[str, list[Union[str, dict[str, Union[list[str], str]]]]]] = []
+    title: str = f'Hello, {Core.user.username}!'
+    while True:
+        choices: list[str] = []
+        applications: dict[str, str] = {}
+        folders: dict[str, dict[str, Union[list[str], str]]] = {}
+        for item in current_order:
+            if isinstance(item, dict):
+                folder_name: Any = item.get('name')
+                if isinstance(folder_name, str):
+                    folders[folder_name] = item
+                    choices.append(folder_name)
+            else:
+                visual: str = Core.applications[item]['visual']
+                applications[visual + ' ' * len(visual) + item] = item
+                choices.append(visual + ' ' * len(visual) + item)
+        application_choice: str = interface(text = title, elements = choices)
+        if application_choice == Core.user.user_experience.abort:
+            if not folder_stack:
+                break
+            title, current_order = folder_stack.pop()
+        elif application_choice in applications and application_check(application_name = application_choice):
+            information(text = 'Application opened!')
+        elif application_choice in folders:
+            folder = folders[application_choice]
+            folder_applications: Any = folder.get('applications', [])
+            if isinstance(folder_applications, list):
+                folder_stack.append((title, current_order))
+                current_order: list[Union[str, dict[str, Union[list[str], str]]]] = folder_applications
+                title = application_choice
+        else:
+            information('The application was not found.')
+
 if __name__ == '__main__':
+    applications_scan()
     while True:
         lock_screen()
         while True:
@@ -417,7 +521,7 @@ if __name__ == '__main__':
             if current_user == Core.user.user_experience.abort:
                 break
             if current_user in Core.users and verify_password(username = current_user):
-                Core.user = Core.users[Core.user.username]
+                Core.user = Core.users[Core.users[current_user].username]
                 if Core.user.get_new():
                     information(text = f'Welcome to SuperOSh, {Core.user.username}!')
                     information(text = 'Let us get you started quickly. Answer to a few questions first before accessing SuperOSh.')
@@ -430,8 +534,13 @@ if __name__ == '__main__':
                                 Core.user.settings.movement_keys[keybind] = [new_key.lower(), new_key.upper()]
                                 break
                     Core.user.set_new()
-                interface(text = 'Do you prefer this or that?', elements = ['This', 'That', 'No, this', 'That!!', 'vro', 'What?', 'Are u serious', '(slowed x reverb)', 'choice1', 'choice2', 'Super'])
-                # placeholder
+                    information(text = 'In interfaces menus, you can press the corresponding key to do the corresponding action.')
+                    for action_name, key in Core.user.settings.movement_keys.items():
+                        information(text = f'Enter \"{key[0]}\" or \"{key[1]}\" to do {action_name}.')
+                    information(text = 'Thank you for choosing SuperOSh!')
+                home_screen()
+                if Core.user.role == 'Guest':
+                    del Core.users[Core.user.username]
             elif current_user == 'Create account':
                 create_account()
             else:
