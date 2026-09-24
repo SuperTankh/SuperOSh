@@ -101,7 +101,7 @@ class User:
                 entered_password (str): The entered password to verify.
 
             Returns:
-                A boolean depending on the parameter.
+                A boolean.
         """
         return entered_password == self.__password
 
@@ -156,6 +156,8 @@ class Core:
     }
     user: User = users['AlfredTheAdmin']
     applications: dict[str, dict[str, Any]] = {}
+    index_tree: list[int] = []
+    choice_tree: list[str] = []
 
 class Unique:
     """
@@ -191,7 +193,7 @@ except ModuleNotFoundError:
                 Nothing.
 
             Returns:
-                A boolean: False.
+                A boolean: Always False.
         """
         return False
     def getwch() -> str:
@@ -266,6 +268,7 @@ def interface(text: str, elements: list[str]) -> str:
     pages: list[list[str]] = []
     page_index: int = 0
     element_index: int = 0
+    elements = list(elements)
     elements.insert(0, Core.user.user_experience.abort)
     while len(elements) > 0:
         pages.append([*elements[0:9]])
@@ -277,19 +280,28 @@ def interface(text: str, elements: list[str]) -> str:
     while True:
         current_page: list[str] = pages[page_index]
         current_page[element_index] += ' <--'
+        enumeration: str = '\n'.join(f'{digit}. {element}' for digit, element in enumerate[str](current_page))
+        interface_text: str = ('\n'.join(*Core.choice_tree) + '\n' if Core.choice_tree else '') + (text + '\n' if text else '') + enumeration
         if Core.keyboard_control:
-            show(text = text + '\n' + '\n'.join(f'{digit}. {element}' for digit, element in enumerate[str](current_page)))
+            show(text = interface_text)
             action: str = getwch()
         else:
-            action: str = write(text = text + '\n' + '\n'.join(f'{digit}. {element}' for digit, element in enumerate[str](current_page)))
+            action: str = write(text = interface_text)
         current_page[element_index] = current_page[element_index][0:-4]
         if action in [*Characters.digits] + (['\r', '\b'] if Core.keyboard_control else ['']):
             choice: int = int(action) if action in Characters.digits else 0 if action == '\b' else element_index
-            action = Core.user.user_experience.next_page if choice == 9 else (Core.user.user_experience.abort if page_index == 0 else Core.user.user_experience.previous_page) if choice == 0 else current_page[choice] if 1 <= choice <= 8 and choice <= len(current_page) - 1 else ''
-        if (action in Core.user.settings.movement_keys['right'] or action == Core.user.user_experience.next_page) and page_index < len(pages)-1:
+            if choice == 9:
+                action = Core.user.user_experience.next_page
+            elif choice == 0:
+                action = Core.user.user_experience.abort if page_index == 0 else Core.user.user_experience.previous_page
+            elif 1 <= choice <= 8 and choice <= len(current_page) - 1:
+                action = current_page[choice]
+            else:
+                action = ''
+        if (action in [Core.user.settings.movement_keys['right'], Core.user.user_experience.next_page]) and page_index < len(pages)-1:
             element_index = 0
             page_index += 1
-        elif (action in Core.user.settings.movement_keys['left'] or action == Core.user.user_experience.previous_page) and page_index > 0:
+        elif (action in [Core.user.settings.movement_keys['left'], Core.user.user_experience.previous_page]) and page_index > 0:
             element_index = 0
             page_index -= 1
         elif (action in Core.user.settings.movement_keys['up']) and (element_index > 0):
@@ -299,7 +311,7 @@ def interface(text: str, elements: list[str]) -> str:
         elif action in current_page:
             return action
         else:
-            information(text = 'Invalid answer!')
+            information(text = 'Invalid answer.')
 
 def ask(text: str) -> bool:
     """
@@ -319,9 +331,42 @@ def ask(text: str) -> bool:
             return False
         information(text = f'You must provide an answer. \"{Core.user.user_experience.abort}\" is not a choice.')
 
+def menu(dictionary: dict[str, str]) -> None:
+    """
+        For applications, this makes the link between nested dictionaries, specific types of values and function calls.
+
+        Parameters:
+            dictionary (dict): a dictionary of valid elements that vary.
+
+        Returns:
+            Nothing.
+    """
+    while True:
+        if '.description' in dictionary.keys():
+            menu_text: str = dictionary['.description']
+        else:
+            menu_text: str = ''
+        elements: list[str] = []
+        for element in dictionary:
+            if element[0] != '.':
+                if element not in elements:
+                    elements.append(element)
+        selected_value: str = interface(text = menu_text, elements = elements)
+        if selected_value == Core.user.user_experience.abort:
+            break
+        Core.choice_tree.append(selected_value)
+        Core.index_tree.append(elements.index(selected_value))
+        selected_action: Any = dictionary[selected_value]
+        if isinstance(selected_action, dict):
+            menu(dictionary = selected_action)
+        elif isinstance(selected_action, str):
+            information(text = selected_action)
+        del Core.index_tree[-1]
+        del Core.choice_tree[-1]
+
 def applications_scan() -> None:
     """
-        Scans the folder for files ending with App.py, verifies the file complies and adds the application in the OS.
+        Scans the folder for files ending with _application.py, verifies the file complies and adds the application in the OS.
 
         Parameters:
             Nothing.
@@ -329,26 +374,42 @@ def applications_scan() -> None:
         Returns:
             Nothing.
     """
-    for file in Path(__file__).parent.glob('*App.py'):
-        spec = util.spec_from_file_location(file.stem, file)
+    for file in Path(__file__).parent.glob('*_application.py'):
+        spec: Any = util.spec_from_file_location(file.stem, file)
         if spec is None:
             continue
-        module = util.module_from_spec(spec)
-        loader = spec.loader
+        module: Any = util.module_from_spec(spec)
+        loader: Any = spec.loader
         if loader is None:
             continue
         loader.exec_module(module)
         if not hasattr(module, 'application'):
             continue
-        application = module.application
+        application: Any = module.application
         if not isinstance(application, dict):
             continue
-        for element in ['name', 'description', 'version', 'visual', 'developer', 'age', 'main']:
-            if element not in application:
-                continue
-            if not isinstance(application[element], str):
-                continue
+        if not all(element in application for element in ['name', 'description', 'version', 'visual', 'developer', 'age', 'main']):
+            continue
+        if not isinstance(application['name'], str):
+            continue
+        if not all(isinstance(application[element], str) for element in ['description', 'visual', 'developer']):
+            continue
+        if not isinstance(application['age'], int):
+            continue
+        if not isinstance(application['version'], dict):
+            continue
+        if not all(element in application['version'] for element in ['major', 'minor', 'patch']):
+            continue
+        if not all(isinstance(application['version'][element], int) for element in ['major', 'minor', 'patch']):
+            continue
+        if not isinstance(application['main'], dict):
+            continue
+        if application['name'] in Core.applications:
+            continue
+        for user in Core.users.values():
+            user.settings.home_screen_order.append(application['name'])
         Core.applications[application['name']] = application
+        information('Application pass.')
 
 def application_check(application_name: str) -> bool:
     """
@@ -360,20 +421,20 @@ def application_check(application_name: str) -> bool:
         Returns:
             A boolean.
     """
-    if Core.applications[application_name]['age'] < Core.user.identity.age:
-        return True
-    information(text = 'You do not have the required age to use this application.')
-    return False
+    if Core.applications[application_name]['age'] > Core.user.identity.age:
+        information(text = 'You do not have the required age to use this application.')
+        return False
+    return True
 
 def verify_password(username: str) -> bool:
     """
-        Verifies the password of the user.
+        Verifies the password of the user if the password is not empty.
 
         Parameters:
             username (str): The username of the user to check.
 
         Returns:
-            A boolean depending on whether the user password was entered, skipped, or aborted.
+            A boolean.
     """
     if username not in Core.users:
         return False
@@ -386,18 +447,19 @@ def verify_password(username: str) -> bool:
             return False
         if Core.users[username].is_password(entered_password = answer):
             return True
-        information(text = 'The password is incorrect.')
-        if Core.users[username].settings.password_reminder:
-            information(text = f'The password of the account is {Core.users[username].get_password()} to remind you.')
-        tries += 1
-        if tries >= 4:
-            seconds: int = tries*5
-            while seconds > 0:
-                show(text = f'You have incorrectly entered the password. You have been blocked for {seconds} seconds.')
-                seconds -= 1
-                sleep(1)
-                while kbhit():
-                    getwch()
+        if answer:
+            information(text = 'The password is incorrect.')
+            if Core.users[username].settings.password_reminder:
+                information(text = f'The password of the account is {Core.users[username].get_password()} to remind you.')
+            tries += 1
+            if tries >= 4:
+                seconds: int = tries*5
+                while seconds > 0:
+                    show(text = f'You have incorrectly entered the password multiple times. You have been blocked for {seconds} seconds.')
+                    seconds -= 1
+                    sleep(1)
+                    while kbhit():
+                        getwch()
 
 def create_account() -> str:
     """
@@ -415,19 +477,21 @@ def create_account() -> str:
             return ''
         if new_username in Core.users:
             information(text = 'This username is already taken.')
-        else:
+        elif new_username != '':
             account_role: str = interface(text = 'What role do you want to have?', elements = ['Administrator', 'User', 'Guest'])
             if account_role == 'Administrator' and any('Administrator' == user.role for user in Core.users.values()):
                 information(text = 'Administrator account already exists')
-            else:
+            elif account_role in ['User', 'Administrator']:
                 if account_role == 'Guest':
                     information(text = 'The account will be deleted on log out.')
                 new_password: str = write(text = 'What should be password of the account?')
                 if new_password != '' and write(text = 'Enter again your password for security.') == new_password:
                     Core.users[new_username] = User(username = new_username, password = new_password, role = account_role)
-                    for item in Core.applications:
-                        Core.users[new_username].settings.home_screen_order.append(item)
+                    for item in Core.applications.values():
+                        Core.users[new_username].settings.home_screen_order.append(item['name'])
                     return new_username
+            else:
+                information(text = 'Invalid role.')
 
 def lock_screen() -> None:
     """
@@ -442,12 +506,13 @@ def lock_screen() -> None:
     while True:
         write(text = f'Enter to turn on {Unique.device_name}.')
         time: str = datetime.now().strftime('%A %d %B %Y' + (', %H:%M:%S' if Unique.lock_screen_time else ''))
+        string: str = f'{time}\nEnter anything to continue, or \"{Core.user.user_experience.abort}\"'
         if Core.keyboard_control:
             user_input: str = ''
             time_left: float = Unique.lock_screen_timeout
             time_to_add: float = 0.0
             while time_left > 0.0:
-                show(text = f'{time}\nEnter \"{Core.user.user_experience.abort}\" or wait {time_left:.2f} seconds to turn off {Unique.device_name}, or anything else to continue.\n>>> {user_input}')
+                show(text = f'{string}, or wait {time_left:.2f} seconds to turn off {Unique.device_name}.\n>>> {user_input}')
                 if kbhit():
                     character: str = getwch()
                     time_left += time_to_add
@@ -459,12 +524,12 @@ def lock_screen() -> None:
                     elif character in Characters.characters:
                         user_input += character
                     else:
-                        information(text = 'Invalid character!')
+                        information(text = 'Invalid character.')
                 time_left -= 0.01
                 time_to_add += 0.01
                 sleep(0.01)
         else:
-            user_input: str = write(text = f'{time}\nEnter \"{Core.user.user_experience.abort}\" to turn off {Unique.device_name}, or anything else to continue.')
+            user_input: str = write(text =  f'{string} to turn off {Unique.device_name}.')
         if user_input not in (Core.user.user_experience.abort, ''):
             break
 
@@ -500,8 +565,10 @@ def home_screen() -> None:
             if not folder_stack:
                 break
             title, current_order = folder_stack.pop()
-        elif application_choice in applications and application_check(application_name = application_choice):
-            information(text = 'Application opened!')
+        elif application_choice in applications and application_check(application_name = applications[application_choice]):
+            Core.choice_tree.append(Core.applications[applications[application_choice]]['name'])
+            menu(dictionary = Core.applications[applications[application_choice]]['main'])
+            del Core.choice_tree[-1]
         elif application_choice in folders:
             folder = folders[application_choice]
             folder_applications: Any = folder.get('applications', [])
@@ -539,8 +606,14 @@ if __name__ == '__main__':
                         information(text = f'Enter \"{key[0]}\" or \"{key[1]}\" to do {action_name}.')
                     information(text = 'Thank you for choosing SuperOSh!')
                 home_screen()
+                Core.choice_tree = []
+                Core.index_tree = []
                 if Core.user.role == 'Guest':
                     del Core.users[Core.user.username]
+                    for account in Core.users.values():
+                        if account.role == 'Administrator':
+                            Core.user = account
+                            break
             elif current_user == 'Create account':
                 create_account()
             else:
