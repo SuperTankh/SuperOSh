@@ -19,10 +19,11 @@ SuperOSh is very secure. but if you are not sure if you should install a dangero
 
 ## Versions history
 ### V0.X
-- V0.0.0: 05/09/26
+- V0: 05/09/26
 - V0.0.1: 12/09/26
 - V0.0.2: 12/09/26
 - V0.0.3: 13/09/26
 - V0.0.4: 16/09/26
 - V0.0.5: 19/09/26
 - V0.0.6: 24/09/26
+- V0.1: 04/10/26
