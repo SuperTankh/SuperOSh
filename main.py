@@ -1,5 +1,5 @@
 """
-    This file englobes all the classes, variables, and functions of the OS.
+    This file englobes all the classes, variables, and functions of the OS. V0.1.1
 """
 from datetime import datetime
 from copy import deepcopy
@@ -72,7 +72,8 @@ class Modify:
                     new_value = interface(text = f'{self.text}\n{value}', elements = [str(element) for element in self.options.keys()])
                     if new_value != Core.user.user_experience.abort:
                         Core.index_tree[-1] = Core.current_index
-                        new_value = self.options[new_value]
+                        if self.options[new_value] != '':
+                            new_value = self.options[new_value]
                 else:
                     new_value = write(text = f'{text}{Core.choice_tree[-1]}: {self.__value}')
             if new_value == Core.user.user_experience.abort:
@@ -227,7 +228,8 @@ class Core:
             username = 'AlfredTheAdmin',
             password = 'WhyAreYouTryingToLogInMyAccount?',
             role = 'Administrator'
-        )
+        ),
+        'a': User('a', 'a', 'a')
     }
     user: User = users['AlfredTheAdmin']
     applications: dict[str, dict[str, Any]] = {}
@@ -354,6 +356,10 @@ def interface(text: str, elements: list[str]) -> str:
             pages[-1].append(Core.user.user_experience.next_page)
             elements.insert(0, Core.user.user_experience.previous_page)
     del elements
+    while len(elements_index) < len(pages):
+        elements_index.append(0)
+    for page_number, page in enumerate(pages):
+        elements_index[page_number] = max(0, min(elements_index[page_number], len(page)-1))
     while True:
         current_page: list[str] = pages[page_index]
         current_page[elements_index[page_index]] += ' <--'
@@ -481,40 +487,6 @@ def quantify(text: str, minimum: Union[int, float], category: type, maximum: Uni
         else:
             information(text = 'Invalid answer.')
 
-def create_account() -> str:
-    """
-        Creates a user account.
-
-        Parameters:
-            Nothing.
-
-        Returns:
-            The username of the new account, or an empty string.
-    """
-    while True:
-        new_username: str = write(text = f'What will be the username of the account? Enter \"{Core.user.user_experience.abort}\" to cancel.')
-        if new_username == Core.user.user_experience.abort:
-            return ''
-        if new_username in Core.users:
-            information(text = 'This username is already taken.')
-        elif new_username != '':
-            account_role: str = write(text = 'What role do you want to have?\nAdministrator\nUser\nGuest')
-            if account_role == 'Administrator' and any('Administrator' == user.role for user in Core.users.values()):
-                information(text = 'Administrator account already exists')
-            elif account_role in ['User', 'Administrator']:
-                if account_role == 'Guest':
-                    information(text = 'The account will be deleted on log out.')
-                new_password: str = write(text = 'What should be password of the account?')
-                if new_password != '' and write(text = 'Enter again your password for security.') == new_password:
-                    new_user: User = User(username = new_username, password = new_password, role = account_role)
-                    for application_name, application in Core.applications.items():
-                        new_user.settings.home_screen_order.append(application_name)
-                        new_user.applications[application_name] = initialise_application(application)
-                    Core.users[new_username] = new_user
-                    return new_username
-            else:
-                information(text = 'Invalid role.')
-
 def applications_scan() -> None:
     """
         Scans the folder for files ending with _application.py, verifies the file complies and adds the application in the OS.
@@ -536,33 +508,34 @@ def applications_scan() -> None:
         loader.exec_module(module)
         if not hasattr(module, 'application'):
             continue
-        application: Any = module.application
-        if not isinstance(application, dict):
+        application_module: Any = module.application
+        if not isinstance(application_module, dict):
             continue
-        if not all(element in application for element in ['name', 'description', 'version', 'visual', 'developer', 'age', 'main']):
+        if not all(element in application_module for element in ['name', 'description', 'version', 'visual', 'developer', 'age', 'main']):
             continue
-        if not isinstance(application['name'], str):
+        if not isinstance(application_module['name'], str):
             continue
-        if not all(isinstance(application[element], str) for element in ['description', 'visual', 'developer']):
+        if not all(isinstance(application_module[element], str) for element in ['description', 'visual', 'developer']):
             continue
-        if not isinstance(application['age'], int):
+        if not isinstance(application_module['age'], int):
             continue
-        if not isinstance(application['version'], dict):
+        if not isinstance(application_module['version'], dict):
             continue
-        if not all(element in application['version'] for element in ['major', 'minor', 'patch']):
+        if not all(element in application_module['version'] for element in ['major', 'minor', 'patch']):
             continue
-        if not all(isinstance(application['version'][element], int) for element in ['major', 'minor', 'patch']):
+        if not all(isinstance(application_module['version'][element], int) for element in ['major', 'minor', 'patch']):
             continue
-        if not isinstance(application['main'], dict):
+        if not isinstance(application_module['main'], dict):
             continue
-        if application['name'] in Core.applications:
+        if application_module['name'] in Core.applications:
             continue
         for user in Core.users.values():
-            user.settings.home_screen_order.append(application['name'])
-            user.applications[application['name']] = initialise_application(application)
-        Core.applications[application['name']] = application
-        if hasattr(module, 'on_load'):
-            module.on_load()
+            user.settings.home_screen_order.append(application_module['name'])
+            if 'initialisation' in application_module and isinstance(application_module['initialisation'], dict):
+                user.applications[application_module['name']] = deepcopy(cast(dict[Any, Any], application_module['initialisation']))
+            if hasattr(module, 'on_load'):
+                module.on_load()
+        Core.applications[application_module['name']] = application_module
 
 def application_check(application_name: str) -> bool:
     """
@@ -614,111 +587,39 @@ def verify_password(username: str) -> bool:
                     while kbhit():
                         getwch()
 
-def initialise_application(application: Any) -> dict[Any, Any]:
-    """
-        Initialises the application data.
-
-        Parameters:
-            application (Any): The application.
-
-        Returns:
-            The dictionary in the application metadata.
-    """
-    return deepcopy(application.get('initialisation'))
-
-def lock_screen() -> None:
-    """
-        Contains the lock screen of the OS.
-
-        Parameters:
-            Nothing.
-
-        Returns:
-            Nothing.
-    """
-    while True:
-        write(text = f'Enter to turn on {Unique.device_name}.')
-        time: str = datetime.now().strftime('%A %d %B %Y' + (', %H:%M:%S' if Unique.lock_screen_time else ''))
-        string: str = f'{time}\nEnter anything to continue, or \"{Core.user.user_experience.abort}\"'
-        if Core.keyboard_control:
-            user_input: str = ''
-            time_left: float = Unique.lock_screen_timeout
-            time_to_add: float = 0.0
-            while time_left > 0.0:
-                show(text = f'{string}, or wait {time_left:.2f} seconds to turn off {Unique.device_name}.\n>>> {user_input}')
-                if kbhit():
-                    character: str = getwch()
-                    time_left += time_to_add
-                    time_to_add -= time_to_add
-                    if character == '\r':
-                        break
-                    if character == '\b':
-                        user_input = user_input[0:-1]
-                    elif character in Characters.characters:
-                        user_input += character
-                    else:
-                        information(text = 'Invalid character.')
-                time_left -= 0.01
-                time_to_add += 0.01
-                sleep(0.01)
-        else:
-            user_input: str = write(text =  f'{string} to turn off {Unique.device_name}.')
-        if user_input not in (Core.user.user_experience.abort, ''):
-            break
-
-def home_screen() -> None:
-    """
-        Contains the home screen of the OS.
-
-        Parameters:
-            Nothing.
-
-        Returns:
-            Nothing.
-    """
-    current_order: list[Union[str, dict[str, Union[list[str], str]]]] = list(Core.user.settings.home_screen_order)
-    folder_stack: list[tuple[str, list[Union[str, dict[str, Union[list[str], str]]]]]] = []
-    title: str = f'Hello, {Core.user.username}!'
-    while True:
-        choices: list[str] = []
-        applications: dict[str, str] = {}
-        folders: dict[str, dict[str, Union[list[str], str]]] = {}
-        for item in current_order:
-            if isinstance(item, dict):
-                folder_name: Any = item.get('name')
-                if isinstance(folder_name, str):
-                    folders[folder_name] = item
-                    choices.append(folder_name)
-            else:
-                visual: str = Core.applications[item]['visual']
-                applications[visual + ' ' * len(visual) + item] = item
-                choices.append(visual + ' ' * len(visual) + item)
-        application_choice: str = interface(text = title, elements = choices)
-        if application_choice == Core.user.user_experience.abort:
-            if not folder_stack:
-                break
-            title, current_order = folder_stack.pop()
-        elif application_choice in applications and application_check(application_name = applications[application_choice]):
-            Core.choice_tree.append(Core.applications[applications[application_choice]]['name'])
-            Core.index_tree.append([])
-            menu(dictionary = Core.applications[applications[application_choice]]['main'])
-            del Core.choice_tree[-1]
-            del Core.index_tree[-1]
-        elif application_choice in folders:
-            folder = folders[application_choice]
-            folder_applications: Any = folder.get('applications', [])
-            if isinstance(folder_applications, list):
-                folder_stack.append((title, current_order))
-                current_order = cast(list[Union[str, dict[str, Union[list[str], str]]]], folder_applications)
-                title = application_choice
-        else:
-            information(text = 'The application was not found.')
-
 if __name__ == '__main__':
     modules['main'] = modules[__name__]
     applications_scan()
     while True:
-        lock_screen()
+        while True:
+            write(text = f'Enter to turn on {Unique.device_name}.')
+            time: str = datetime.now().strftime('%A %d %B %Y' + (', %H:%M:%S' if Unique.lock_screen_time else ''))
+            string: str = f'{time}\nEnter anything to continue, or \"{Core.user.user_experience.abort}\"'
+            if Core.keyboard_control:
+                user_input: str = ''
+                time_left: float = Unique.lock_screen_timeout
+                time_to_add: float = 0.0
+                while time_left > 0.0:
+                    show(text = f'{string}, or wait {time_left:.2f} seconds to turn off {Unique.device_name}.\n>>> {user_input}')
+                    if kbhit():
+                        character: str = getwch()
+                        time_left += time_to_add
+                        time_to_add -= time_to_add
+                        if character == '\r':
+                            break
+                        if character == '\b':
+                            user_input = user_input[0:-1]
+                        elif character in Characters.characters:
+                            user_input += character
+                        else:
+                            information(text = 'Invalid character.')
+                    time_left -= 0.01
+                    time_to_add += 0.01
+                    sleep(0.01)
+            else:
+                user_input: str = write(text =  f'{string} to turn off {Unique.device_name}.')
+            if user_input not in (Core.user.user_experience.abort, ''):
+                break
         user_text: str = 'Enter the user you want to log in, or \"Create account\" to create an account, or '
         while True:
             current_user: str = write(text = f'{user_text}\"{Core.user.user_experience.abort}\" to turn off {Unique.device_name}.')
@@ -742,7 +643,43 @@ if __name__ == '__main__':
                     for action_name, key in Core.user.settings.movement_keys.items():
                         information(text = f'Enter \"{key[0]}\" or \"{key[1]}\" to do {action_name}.')
                     information(text = 'Thank you for choosing SuperOSh!')
-                home_screen()
+                current_order: list[Union[str, dict[str, Union[list[str], str]]]] = list(Core.user.settings.home_screen_order)
+                folder_stack: list[tuple[str, list[Union[str, dict[str, Union[list[str], str]]]]]] = []
+                title: str = f'Hello, {Core.user.username}!'
+                while True:
+                    choices: list[str] = []
+                    applications: dict[str, str] = {}
+                    folders: dict[str, dict[str, Union[list[str], str]]] = {}
+                    for item in current_order:
+                        if isinstance(item, dict):
+                            folder_name: Any = item.get('name')
+                            if isinstance(folder_name, str):
+                                folders[folder_name] = item
+                                choices.append(folder_name)
+                        else:
+                            visual: str = Core.applications[item]['visual']
+                            applications[visual + ' ' * len(visual) + item] = item
+                            choices.append(visual + ' ' * len(visual) + item)
+                    application_choice: str = interface(text = title, elements = choices)
+                    if application_choice == Core.user.user_experience.abort:
+                        if not folder_stack:
+                            break
+                        title, current_order = folder_stack.pop()
+                    elif application_choice in applications and application_check(application_name = applications[application_choice]):
+                        Core.choice_tree.append(Core.applications[applications[application_choice]]['name'])
+                        Core.index_tree.append([])
+                        menu(dictionary = Core.applications[applications[application_choice]]['main'])
+                        del Core.choice_tree[-1]
+                        del Core.index_tree[-1]
+                    elif application_choice in folders:
+                        folder = folders[application_choice]
+                        folder_applications: Any = folder.get('applications', [])
+                        if isinstance(folder_applications, list):
+                            folder_stack.append((title, current_order))
+                            current_order = cast(list[Union[str, dict[str, Union[list[str], str]]]], folder_applications)
+                            title = application_choice
+                    else:
+                        information(text = 'The application was not found.')
                 Core.choice_tree = []
                 if Core.user.role == 'Guest':
                     del Core.users[Core.user.username]
@@ -751,6 +688,28 @@ if __name__ == '__main__':
                             Core.user = account
                             break
             elif current_user == 'Create account':
-                create_account()
+                while True:
+                    new_username: str = write(text = f'What will be the username? Enter \"{Core.user.user_experience.abort}\" to cancel.')
+                    if new_username == Core.user.user_experience.abort:
+                        break
+                    if new_username in Core.users:
+                        information(text = 'This username is already taken.')
+                    elif new_username != '':
+                        account_role: str = write(text = 'What role do you want to have?\nAdministrator\nUser\nGuest')
+                        if account_role == 'Administrator' and any('Administrator' == user.role for user in Core.users.values()):
+                            information(text = 'Administrator account already exists')
+                        elif account_role in ['User', 'Administrator']:
+                            if account_role == 'Guest':
+                                information(text = 'The account will be deleted on log out.')
+                            new_password: str = write(text = 'What should be password of the account?')
+                            if new_password != '' and write(text = 'Enter again your password for security.') == new_password:
+                                new_user: User = User(username = new_username, password = new_password, role = account_role)
+                                for the_application_name, application in Core.applications.items():
+                                    new_user.settings.home_screen_order.append(the_application_name)
+                                    new_user.applications[the_application_name] = deepcopy(application.get('initialisation'))
+                                Core.users[new_username] = new_user
+                                break
+                        else:
+                            information(text = 'Invalid role.')
             else:
                 information(text = 'Account does not exist.')
