@@ -1,5 +1,5 @@
 """
-    This file englobes all the classes, variables, and functions of the OS. V0.1.1
+    This file englobes all the classes, variables, and functions of the OS. V0.1.2
 """
 from datetime import datetime
 from copy import deepcopy
@@ -479,7 +479,7 @@ def quantify(text: str, minimum: Union[int, float], category: type, maximum: Uni
             return Core.user.user_experience.abort
         if number and (category in [int, float] or (len(number.split('.')) == 2 and category == float)):
             if all(digit in Characters.digits for digit in (number.removeprefix('-') if number[0] == '-' else number).replace('.', '')):
-                if minimum < category(number) < maximum:
+                if minimum <= category(number) <= maximum:
                     return category(number)
                 information(text = 'Number out of range.')
             else:
