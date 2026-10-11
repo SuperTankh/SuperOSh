@@ -1,17 +1,17 @@
 """
-    This file englobes all the classes, variables, and functions of the OS. V0.1.2
+    This file englobes all the classes, variables, and functions of the OS. Version 0.1.3
 """
 from datetime import datetime
 from copy import deepcopy
 from time import sleep
-from typing import Any, Union, cast
+from typing import Any, Union
 from pathlib import Path
 from importlib import util
 from sys import modules
 
 class Modify:
     """
-        Stores a value and a text, which can be changed with modify().
+        Stores a text, a value, and sometimes options, which can be changed with modify().
     """
     def __init__(self, text: str, value: Any, options: Union[dict[str, Union[str, int, float, type]], None] = None) -> None:
         """
@@ -26,7 +26,9 @@ class Modify:
                 Nothing.
         """
         self.text: str = text
-        self.__value: Any = value
+        if not isinstance(value, (bool, list, int, float, str)):
+            value = str(value)
+        self.__value: Union[bool, list[str], int, float, str] = value
         self.options: dict[str, Union[str, int, float, type]] = options if options is not None else {}
 
     def value(self) -> Any:
@@ -60,13 +62,27 @@ class Modify:
                 new_value = interface(text = f'{self.text}\n{Core.choice_tree[-1]}: {displayed_value}', elements = ['Enable', 'Disable'])
                 new_value = True if new_value == 'Enable' else False if new_value == 'Disable' else new_value
                 Core.index_tree[-1] = Core.current_index
+            elif isinstance(self.__value, list):
+                value_elements: str = ', '.join(element for element in self.__value)
+                value: str = f'{Core.choice_tree[-1]}: {value_elements}'
+                chosen_choice = interface(text = f'{self.text}\n{value}', elements = [str(element) for element in self.options.keys()])
+                if chosen_choice != Core.user.user_experience.abort:
+                    if chosen_choice in self.__value:
+                        new_value = self.__value
+                        new_value.remove(chosen_choice)
+                    else:
+                        new_value = self.__value
+                        new_value.append(chosen_choice)
+                    Core.index_tree[-1] = Core.current_index
+                else:
+                    new_value = Core.user.user_experience.abort
             elif isinstance(self.__value, (int, float)):
-                new_minimum: Union[int, float] = cast(Union[int, float], self.options['minimum'])
-                new_type = cast(type, self.options['type'])
-                new_maximum: Union[int, float] = cast(Union[int, float], self.options['maximum'])
+                new_minimum: Union[int, float] = self.options['minimum'] if isinstance(self.options['minimum'], (int, float)) else 0
+                new_type: type = self.options['type'] if isinstance(self.options['type'], type) else float
+                new_maximum: Union[int, float] = self.options['maximum'] if isinstance(self.options['maximum'], (int, float)) else 100
                 number_text: str = f'{text}{Core.choice_tree[-1]}: {self.__value}'
                 new_value = quantify(text = number_text, minimum = new_minimum, category = new_type, maximum = new_maximum)
-            elif isinstance(self.__value, str):
+            else:
                 value: str = f'{Core.choice_tree[-1]}: {self.__value}'
                 if self.options:
                     new_value = interface(text = f'{self.text}\n{value}', elements = [str(element) for element in self.options.keys()])
@@ -356,10 +372,6 @@ def interface(text: str, elements: list[str]) -> str:
             pages[-1].append(Core.user.user_experience.next_page)
             elements.insert(0, Core.user.user_experience.previous_page)
     del elements
-    while len(elements_index) < len(pages):
-        elements_index.append(0)
-    for page_number, page in enumerate(pages):
-        elements_index[page_number] = max(0, min(elements_index[page_number], len(page)-1))
     while True:
         current_page: list[str] = pages[page_index]
         current_page[elements_index[page_index]] += ' <--'
@@ -382,9 +394,9 @@ def interface(text: str, elements: list[str]) -> str:
                 action = current_page[choice]
             else:
                 action = ''
-        if (action in [Core.user.settings.movement_keys['right'], Core.user.user_experience.next_page]) and page_index < len(pages)-1:
+        if (action in [*Core.user.settings.movement_keys['right'], Core.user.user_experience.next_page]) and page_index < len(pages)-1:
             page_index += 1
-        elif (action in [Core.user.settings.movement_keys['left'], Core.user.user_experience.previous_page]) and page_index > 0:
+        elif (action in [*Core.user.settings.movement_keys['left'], Core.user.user_experience.previous_page]) and page_index > 0:
             page_index -= 1
         elif (action in Core.user.settings.movement_keys['up']) and (elements_index[page_index] > 0):
             elements_index[page_index] -= 1
@@ -448,7 +460,7 @@ def menu(dictionary: dict[str, Union[str, dict[str, Any], Any]]) -> None:
         selected_action: Any = dictionary[selected_value]
         Core.index_tree.append([])
         if isinstance(selected_action, dict):
-            nested_action: dict[str, Any] = cast(dict[str, Any], selected_action)
+            nested_action: dict[str, Any] = selected_action
             if '.name' in nested_action.keys():
                 Core.choice_tree[-1] = str(nested_action['.name']()) if callable(nested_action['.name']) else nested_action['.name']
             menu(dictionary = nested_action)
@@ -472,12 +484,15 @@ def quantify(text: str, minimum: Union[int, float], category: type, maximum: Uni
             minimum (int or float): The minimum of the returned value.
             category (type): Decides whether the returned value is an integer or a real number.
             maximum (int or float): The maximum of the returned value.
+
+        Returns:
+            Either the Abort value, or a valid number.
     """
     while True:
         number: str = write(text = text)
         if number == Core.user.user_experience.abort:
             return Core.user.user_experience.abort
-        if number and (category in [int, float] or (len(number.split('.')) == 2 and category == float)):
+        if number and ((category == int and '.' not in number) or (len(number.split('.')) == 2 and category == float)):
             if all(digit in Characters.digits for digit in (number.removeprefix('-') if number[0] == '-' else number).replace('.', '')):
                 if minimum <= category(number) <= maximum:
                     return category(number)
@@ -486,71 +501,6 @@ def quantify(text: str, minimum: Union[int, float], category: type, maximum: Uni
                 information(text = 'Invalid number.')
         else:
             information(text = 'Invalid answer.')
-
-def applications_scan() -> None:
-    """
-        Scans the folder for files ending with _application.py, verifies the file complies and adds the application in the OS.
-
-        Parameters:
-            Nothing.
-
-        Returns:
-            Nothing.
-    """
-    for file in Path(__file__).parent.glob('*_application.py'):
-        spec: Any = util.spec_from_file_location(file.stem, file)
-        if spec is None:
-            continue
-        module: Any = util.module_from_spec(spec)
-        loader: Any = spec.loader
-        if loader is None:
-            continue
-        loader.exec_module(module)
-        if not hasattr(module, 'application'):
-            continue
-        application_module: Any = module.application
-        if not isinstance(application_module, dict):
-            continue
-        if not all(element in application_module for element in ['name', 'description', 'version', 'visual', 'developer', 'age', 'main']):
-            continue
-        if not isinstance(application_module['name'], str):
-            continue
-        if not all(isinstance(application_module[element], str) for element in ['description', 'visual', 'developer']):
-            continue
-        if not isinstance(application_module['age'], int):
-            continue
-        if not isinstance(application_module['version'], dict):
-            continue
-        if not all(element in application_module['version'] for element in ['major', 'minor', 'patch']):
-            continue
-        if not all(isinstance(application_module['version'][element], int) for element in ['major', 'minor', 'patch']):
-            continue
-        if not isinstance(application_module['main'], dict):
-            continue
-        if application_module['name'] in Core.applications:
-            continue
-        for user in Core.users.values():
-            user.settings.home_screen_order.append(application_module['name'])
-            if 'initialisation' in application_module and isinstance(application_module['initialisation'], dict):
-                user.applications[application_module['name']] = deepcopy(cast(dict[Any, Any], application_module['initialisation']))
-            if hasattr(module, 'on_load'):
-                module.on_load()
-        Core.applications[application_module['name']] = application_module
-
-def application_check(application_name: str) -> bool:
-    """
-        Checks if the application can be opened or read.
-
-        Parameters:
-            application_name (str): The application.
-
-        Returns:
-            A boolean.
-    """
-    if Core.applications[application_name]['age'] > Core.user.identity.age:
-        information(text = 'You do not have the required age to use this application.')
-        return False
-    return True
 
 def verify_password(username: str) -> bool:
     """
@@ -589,7 +539,6 @@ def verify_password(username: str) -> bool:
 
 if __name__ == '__main__':
     modules['main'] = modules[__name__]
-    applications_scan()
     while True:
         while True:
             write(text = f'Enter to turn on {Unique.device_name}.')
@@ -643,6 +592,48 @@ if __name__ == '__main__':
                     for action_name, key in Core.user.settings.movement_keys.items():
                         information(text = f'Enter \"{key[0]}\" or \"{key[1]}\" to do {action_name}.')
                     information(text = 'Thank you for choosing SuperOSh!')
+                for file in Path(__file__).parent.glob('*_application.py'):
+                    spec: Any = util.spec_from_file_location(file.stem, file)
+                    if spec is None:
+                        continue
+                    module: Any = util.module_from_spec(spec)
+                    loader: Any = spec.loader
+                    if loader is None:
+                        continue
+                    loader.exec_module(module)
+                    if not hasattr(module, 'application'):
+                        continue
+                    application_module: Any = module.application
+                    if not isinstance(application_module, dict):
+                        continue
+                    if not all(element in application_module for element in ['name', 'description', 'version', 'visual', 'developer', 'main']):
+                        continue
+                    if not isinstance(application_module['name'], str):
+                        continue
+                    if not all(isinstance(application_module[element], str) for element in ['description', 'visual', 'developer']):
+                        continue
+                    if 'age' in application_module:
+                        if not isinstance(application_module['age'], int):
+                            continue
+                    else:
+                        application_module['age'] = 0
+                    if not isinstance(application_module['version'], dict):
+                        continue
+                    if not all(element in application_module['version'] for element in ['major', 'minor', 'patch']):
+                        continue
+                    if not all(isinstance(application_module['version'][element], int) for element in ['major', 'minor', 'patch']):
+                        continue
+                    if not isinstance(application_module['main'], dict):
+                        continue
+                    if application_module['name'] in Core.applications:
+                        continue
+                    for user in Core.users.values():
+                        user.settings.home_screen_order.append(application_module['name'])
+                        if 'initialisation' in application_module and isinstance(application_module['initialisation'], dict):
+                            user.applications[application_module['name']] = deepcopy(application_module['initialisation'])
+                        if hasattr(module, 'on_load'):
+                            module.on_load()
+                    Core.applications[application_module['name']] = application_module
                 current_order: list[Union[str, dict[str, Union[list[str], str]]]] = list(Core.user.settings.home_screen_order)
                 folder_stack: list[tuple[str, list[Union[str, dict[str, Union[list[str], str]]]]]] = []
                 title: str = f'Hello, {Core.user.username}!'
@@ -665,18 +656,21 @@ if __name__ == '__main__':
                         if not folder_stack:
                             break
                         title, current_order = folder_stack.pop()
-                    elif application_choice in applications and application_check(application_name = applications[application_choice]):
+                    elif application_choice in applications:
+                        if Core.applications[applications[application_choice]]['age'] > Core.user.identity.age:
+                            information(text = 'You do not have the required age to use this application.')
+                            continue
                         Core.choice_tree.append(Core.applications[applications[application_choice]]['name'])
                         Core.index_tree.append([])
                         menu(dictionary = Core.applications[applications[application_choice]]['main'])
-                        del Core.choice_tree[-1]
-                        del Core.index_tree[-1]
+                        Core.choice_tree = []
+                        Core.index_tree = []
                     elif application_choice in folders:
                         folder = folders[application_choice]
                         folder_applications: Any = folder.get('applications', [])
                         if isinstance(folder_applications, list):
                             folder_stack.append((title, current_order))
-                            current_order = cast(list[Union[str, dict[str, Union[list[str], str]]]], folder_applications)
+                            current_order = folder_applications
                             title = application_choice
                     else:
                         information(text = 'The application was not found.')
@@ -698,7 +692,7 @@ if __name__ == '__main__':
                         account_role: str = write(text = 'What role do you want to have?\nAdministrator\nUser\nGuest')
                         if account_role == 'Administrator' and any('Administrator' == user.role for user in Core.users.values()):
                             information(text = 'Administrator account already exists')
-                        elif account_role in ['User', 'Administrator']:
+                        elif account_role in ['User', 'Administrator', 'Guest']:
                             if account_role == 'Guest':
                                 information(text = 'The account will be deleted on log out.')
                             new_password: str = write(text = 'What should be password of the account?')
