@@ -1,5 +1,5 @@
 """
-    This file englobes all the classes, variables, and functions of the OS. Version 0.1.3
+    This file englobes all the classes, variables, and functions of the OS. Version 0.2.1
 """
 from datetime import datetime
 from copy import deepcopy
@@ -244,8 +244,7 @@ class Core:
             username = 'AlfredTheAdmin',
             password = 'WhyAreYouTryingToLogInMyAccount?',
             role = 'Administrator'
-        ),
-        'a': User('a', 'a', 'a')
+        )
     }
     user: User = users['AlfredTheAdmin']
     applications: dict[str, dict[str, Any]] = {}
@@ -606,7 +605,7 @@ if __name__ == '__main__':
                     application_module: Any = module.application
                     if not isinstance(application_module, dict):
                         continue
-                    if not all(element in application_module for element in ['name', 'description', 'version', 'visual', 'developer', 'main']):
+                    if not all(branch in application_module for branch in ['name', 'description', 'version', 'visual', 'developer', 'main']):
                         continue
                     if not isinstance(application_module['name'], str):
                         continue
