@@ -13,7 +13,7 @@ wi_fi_connections: dict[str, str] = {
 application: dict[str, Any] = {
     'name': 'Settings',
     'description': 'The Settings application is where you change your device preferences and system configurations.',
-    'version': {'major': 0, 'minor': 1, 'patch': 0},
+    'version': {'major': 0, 'minor': 1, 'patch': 1},
     'visual': '⚙️',
     'developer': 'SuperOSh',
     'initialisation': {
@@ -60,7 +60,8 @@ application: dict[str, Any] = {
         'switch_better_networks': Modify(text = 'Automatically switch to Wi-Fi networks that are faster or more stable than your current network.', value = True),
         'detect_suspicious_networks': Modify(text = 'Get notified when suspicious activity is detected on the current Wi-Fi network.', value = True),
         'network_exceptions': Modify(text = 'Add networks that you trust and do not want to monitor for suspicious activity.', value = [], options = {name: name for name in wi_fi_connections}),
-        'auto_hotspot': Modify(text = 'Choose when to connect to an Auto Hotspot device if your device does not have an internet connection. This only works if Wi-Fi is on and there is an Auto Hotspot device near you that you are allowed to use.', value = 'Never', options = {'Never connect': 'Never', 'Ask before connecting': 'Ask', 'Always connect': 'Always'})
+        'auto_hotspot': Modify(text = 'Choose when to connect to an Auto Hotspot device if your device does not have an internet connection. This only works if Wi-Fi is on and there is an Auto Hotspot device near you that you are allowed to use.', value = 'Never', options = {'Never connect': 'Never', 'Ask before connecting': 'Ask', 'Always connect': 'Always'}),
+        'send_name': Modify(text = 'Send the device name to the Wi-Fi network.', value = True)
     },
     'main': {
         '.description': 'Welcome in the Settings! You can change your device preferences and system configurations as you want.',
@@ -125,7 +126,8 @@ application: dict[str, Any] = {
                 'Switch to better Wi-Fi networks': lambda: Core.user.applications['Settings']['switch_better_networks'],
                 'Detect suspicious networks': lambda: Core.user.applications['Settings']['detect_suspicious_networks'],
                 'Network exceptions': lambda: Core.user.applications['Settings']['network_exceptions'],
-                'Auto Hotspot connection': lambda: Core.user.applications['Settings']['auto_hotspot']
+                'Auto Hotspot connection': lambda: Core.user.applications['Settings']['auto_hotspot'],
+                'Send name to network': lambda: Core.user.applications['Settings']['send_name']
             }
         }
     }
