@@ -1,5 +1,5 @@
 """
-    This file englobes all the classes, variables, and functions of the OS. Version 0.2.1
+    This file englobes all the classes, variables, and functions of the OS. Version 0.2.2
 """
 from datetime import datetime
 from copy import deepcopy
@@ -8,6 +8,7 @@ from typing import Any, Union
 from pathlib import Path
 from importlib import util
 from sys import modules
+from contextlib import contextmanager
 
 class Modify:
     """
@@ -54,17 +55,16 @@ class Modify:
                 Nothing
         """
         new_value: Any = ''
-        branches: str = (' - '.join(branch for branch in Core.choice_tree)) + '\n' if Core.choice_tree else ''
+        branches: str = (' - '.join(branch for branch in Core.choices)) + '\n' if Core.choices else ''
         text: str = f'{branches}{self.text} To abort, enter {Core.user.user_experience.abort}.\n'
         while True:
             if isinstance(self.__value, bool):
                 displayed_value: str = 'Enabled' if self.__value else 'Disabled'
-                new_value = interface(text = f'{self.text}\n{Core.choice_tree[-1]}: {displayed_value}', elements = ['Enable', 'Disable'])
+                new_value = interface(text = f'{self.text}\n{Core.choices[-1]}: {displayed_value}', elements = ['Enable', 'Disable'])
                 new_value = True if new_value == 'Enable' else False if new_value == 'Disable' else new_value
-                Core.index_tree[-1] = Core.current_index
             elif isinstance(self.__value, list):
                 value_elements: str = ', '.join(element for element in self.__value)
-                value: str = f'{Core.choice_tree[-1]}: {value_elements}'
+                value: str = f'{Core.choices[-1]}: {value_elements}'
                 chosen_choice = interface(text = f'{self.text}\n{value}', elements = [str(element) for element in self.options.keys()])
                 if chosen_choice != Core.user.user_experience.abort:
                     if chosen_choice in self.__value:
@@ -73,25 +73,23 @@ class Modify:
                     else:
                         new_value = self.__value
                         new_value.append(chosen_choice)
-                    Core.index_tree[-1] = Core.current_index
                 else:
                     new_value = Core.user.user_experience.abort
             elif isinstance(self.__value, (int, float)):
                 new_minimum: Union[int, float] = self.options['minimum'] if isinstance(self.options['minimum'], (int, float)) else 0
                 new_type: type = self.options['type'] if isinstance(self.options['type'], type) else float
                 new_maximum: Union[int, float] = self.options['maximum'] if isinstance(self.options['maximum'], (int, float)) else 100
-                number_text: str = f'{text}{Core.choice_tree[-1]}: {self.__value}'
+                number_text: str = f'{text}{Core.choices[-1]}: {self.__value}'
                 new_value = quantify(text = number_text, minimum = new_minimum, category = new_type, maximum = new_maximum)
             else:
-                value: str = f'{Core.choice_tree[-1]}: {self.__value}'
+                value: str = f'{Core.choices[-1]}: {self.__value}'
                 if self.options:
                     new_value = interface(text = f'{self.text}\n{value}', elements = [str(element) for element in self.options.keys()])
                     if new_value != Core.user.user_experience.abort:
-                        Core.index_tree[-1] = Core.current_index
                         if self.options[new_value] != '':
                             new_value = self.options[new_value]
                 else:
-                    new_value = write(text = f'{text}{Core.choice_tree[-1]}: {self.__value}')
+                    new_value = write(text = f'{text}{Core.choices[-1]}: {self.__value}')
             if new_value == Core.user.user_experience.abort:
                 break
             if new_value != '':
@@ -101,21 +99,21 @@ class User:
     """
         Stores the data of a user account.
     """
-    def __init__(self, username: str, password: str, role: str) -> None:
+    def __init__(self, username: str, user_password: str, user_role: str) -> None:
         """
             Initialises account data.
 
             Parameters:
                 username (str): The username of the account.
-                password (str): The password of the account.
-                role (str): The permissions role of the account.
+                user_password (str): The password of the account.
+                user_role (str): The permissions role of the account.
 
             Returns:
                 Nothing.
         """
         self.username: str = username
-        self.__password: str = password
-        self.role: str = role
+        self.__password: str = user_password
+        self.role: str = user_role
         self.__new: bool = True
         self.user_experience: User.UserExperience = self.UserExperience()
         self.applications: dict[str, Any] = {}
@@ -242,15 +240,14 @@ class Core:
     users: dict[str, User] = {
         'AlfredTheAdmin': User(
             username = 'AlfredTheAdmin',
-            password = 'WhyAreYouTryingToLogInMyAccount?',
-            role = 'Administrator'
+            user_password = 'WhyAreYouTryingToLogInMyAccount?',
+            user_role = 'Administrator'
         )
     }
     user: User = users['AlfredTheAdmin']
     applications: dict[str, dict[str, Any]] = {}
-    choice_tree: list[str] = []
-    index_tree: list[list[int]] = []
-    current_index: list[int] = []
+    choices: list[str] = []
+    indexes: list[list[int]] = []
 
 class Unique:
     """
@@ -301,6 +298,27 @@ except ModuleNotFoundError:
                 A string: The Enter character.
         """
         return '\r'
+
+@contextmanager
+def indexation(choice: str = ''):
+    """
+        Creates a new index level instead of manually appending and deleting the index values.
+
+        Parameters:
+            choice (str): The choice that will be added in the choices tree.
+
+        Returns:
+            Nothing.
+    """
+    Core.indexes.append([])
+    if choice:
+        Core.choices.append(choice)
+    try:
+        yield
+    finally:
+        del Core.indexes[-1]
+        if choice:
+            del Core.choices[-1]
 
 def show(text: str) -> None:
     """
@@ -361,7 +379,7 @@ def interface(text: str, elements: list[str]) -> str:
     """
     pages: list[list[str]] = []
     page_index: int = 0
-    elements_index: list[int] = [0]*(((len(elements)-1)//8)+1) if (not Core.index_tree) or (not Core.index_tree[-1]) else Core.index_tree[-1]
+    elements_index: list[int] = [0]*(((len(elements)-1)//8)+1) if (not Core.indexes) or (not Core.indexes[-1]) else Core.indexes[-1]
     elements = list(elements)
     elements.insert(0, Core.user.user_experience.abort)
     while len(elements) > 0:
@@ -375,7 +393,7 @@ def interface(text: str, elements: list[str]) -> str:
         current_page: list[str] = pages[page_index]
         current_page[elements_index[page_index]] += ' <--'
         enumeration: str = '\n'.join(f'{digit}. {element}' for digit, element in enumerate[str](current_page))
-        branches: str = (' - '.join(branch for branch in Core.choice_tree)) + '\n' if Core.choice_tree else ''
+        branches: str = (' - '.join(branch for branch in Core.choices)) + '\n' if Core.choices else ''
         interface_text: str = branches + (text + '\n' if text else '') + enumeration
         if Core.keyboard_control:
             show(text = interface_text)
@@ -402,7 +420,8 @@ def interface(text: str, elements: list[str]) -> str:
         elif (action in Core.user.settings.movement_keys['down']) and (elements_index[page_index] < len(current_page)-1):
             elements_index[page_index] += 1
         elif action in current_page:
-            Core.current_index = elements_index
+            if Core.indexes and Core.indexes[-1] == []:
+                Core.indexes[-1] = elements_index
             return action
         else:
             information(text = 'Invalid answer.')
@@ -454,25 +473,21 @@ def menu(dictionary: dict[str, Union[str, dict[str, Any], Any]]) -> None:
         selected_value: str = interface(text = menu_text, elements = elements)
         if selected_value == Core.user.user_experience.abort:
             break
-        Core.index_tree[-1] = Core.current_index
-        Core.choice_tree.append(selected_value)
         selected_action: Any = dictionary[selected_value]
-        Core.index_tree.append([])
-        if isinstance(selected_action, dict):
-            nested_action: dict[str, Any] = selected_action
-            if '.name' in nested_action.keys():
-                Core.choice_tree[-1] = str(nested_action['.name']()) if callable(nested_action['.name']) else nested_action['.name']
-            menu(dictionary = nested_action)
-        elif isinstance(selected_action, str):
-            information(text = selected_action)
-        elif callable(selected_action):
-            result: Any = selected_action()
-            if isinstance(result, Modify):
-                result.modify()
-        else:
-            information(text = 'Unrecognised action.')
-        del Core.choice_tree[-1]
-        del Core.index_tree[-1]
+        with indexation(choice = selected_value):
+            if isinstance(selected_action, dict):
+                nested_action: dict[str, Any] = selected_action
+                if '.name' in nested_action.keys():
+                    Core.choices[-1] = str(nested_action['.name']()) if callable(nested_action['.name']) else nested_action['.name']
+                menu(dictionary = nested_action)
+            elif isinstance(selected_action, str):
+                information(text = selected_action)
+            elif callable(selected_action):
+                result: Any = selected_action()
+                if isinstance(result, Modify):
+                    result.modify()
+            else:
+                information(text = 'Unrecognised action.')
 
 def quantify(text: str, minimum: Union[int, float], category: type, maximum: Union[int, float]) -> Union[int, float, str]:
     """
@@ -501,7 +516,7 @@ def quantify(text: str, minimum: Union[int, float], category: type, maximum: Uni
         else:
             information(text = 'Invalid answer.')
 
-def verify_password(username: str) -> bool:
+def password(username: str) -> bool:
     """
         Verifies the password of the user if the password is not empty.
 
@@ -573,7 +588,7 @@ if __name__ == '__main__':
             current_user: str = write(text = f'{user_text}\"{Core.user.user_experience.abort}\" to turn off {Unique.device_name}.')
             if current_user == Core.user.user_experience.abort:
                 break
-            if current_user in Core.users and verify_password(username = current_user):
+            if current_user in Core.users and password(username = current_user):
                 Core.user = Core.users[Core.users[current_user].username]
                 if Core.user.get_new():
                     information(text = f'Welcome to SuperOSh, {Core.user.username}!')
@@ -636,6 +651,7 @@ if __name__ == '__main__':
                 current_order: list[Union[str, dict[str, Union[list[str], str]]]] = list(Core.user.settings.home_screen_order)
                 folder_stack: list[tuple[str, list[Union[str, dict[str, Union[list[str], str]]]]]] = []
                 title: str = f'Hello, {Core.user.username}!'
+                temporary_index: list[int] = []
                 while True:
                     choices: list[str] = []
                     applications: dict[str, str] = {}
@@ -650,7 +666,10 @@ if __name__ == '__main__':
                             visual: str = Core.applications[item]['visual']
                             applications[visual + ' ' * len(visual) + item] = item
                             choices.append(visual + ' ' * len(visual) + item)
+                    Core.indexes = [[0]*(((len(choices)-1)//8)+1)] if not temporary_index else [temporary_index]
                     application_choice: str = interface(text = title, elements = choices)
+                    temporary_index = Core.indexes[-1]
+                    Core.indexes = []
                     if application_choice == Core.user.user_experience.abort:
                         if not folder_stack:
                             break
@@ -659,11 +678,8 @@ if __name__ == '__main__':
                         if Core.applications[applications[application_choice]]['age'] > Core.user.identity.age:
                             information(text = 'You do not have the required age to use this application.')
                             continue
-                        Core.choice_tree.append(Core.applications[applications[application_choice]]['name'])
-                        Core.index_tree.append([])
-                        menu(dictionary = Core.applications[applications[application_choice]]['main'])
-                        Core.choice_tree = []
-                        Core.index_tree = []
+                        with indexation(choice = application_choice):
+                            menu(dictionary = Core.applications[applications[application_choice]]['main'])
                     elif application_choice in folders:
                         folder = folders[application_choice]
                         folder_applications: Any = folder.get('applications', [])
@@ -673,7 +689,6 @@ if __name__ == '__main__':
                             title = application_choice
                     else:
                         information(text = 'The application was not found.')
-                Core.choice_tree = []
                 if Core.user.role == 'Guest':
                     del Core.users[Core.user.username]
                     for account in Core.users.values():
@@ -696,7 +711,7 @@ if __name__ == '__main__':
                                 information(text = 'The account will be deleted on log out.')
                             new_password: str = write(text = 'What should be password of the account?')
                             if new_password != '' and write(text = 'Enter again your password for security.') == new_password:
-                                new_user: User = User(username = new_username, password = new_password, role = account_role)
+                                new_user: User = User(username = new_username, user_password = new_password, user_role = account_role)
                                 for the_application_name, application in Core.applications.items():
                                     new_user.settings.home_screen_order.append(the_application_name)
                                     new_user.applications[the_application_name] = deepcopy(application.get('initialisation'))
