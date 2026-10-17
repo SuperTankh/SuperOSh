@@ -34,3 +34,4 @@ SuperOSh is very secure. but if you are not sure if you should install a dangero
 * 0.2 - 11/10/26
 * 0.2.1 - 11/10/26
 * 0.2.2 - 15/10/26
+* 0.2.3 - 17/10/26
