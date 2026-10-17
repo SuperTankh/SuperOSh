@@ -1,5 +1,5 @@
 """
-    This file englobes all the classes, variables, and functions of the OS. Version 0.2.2
+    This file englobes all the classes, variables, and functions of the OS. Version 0.2.3
 """
 from datetime import datetime
 from copy import deepcopy
@@ -10,7 +10,7 @@ from importlib import util
 from sys import modules
 from contextlib import contextmanager
 
-class Modify:
+class Modifiable:
     """
         Stores a text, a value, and sometimes options, which can be changed with modify().
     """
@@ -19,7 +19,7 @@ class Modify:
             Stores the value and the text in this instance.
 
             Parameters:
-                self (Modify): The instance.
+                self (Modifiable): The instance.
                 text (str): The text that will be shown in the interface.
                 value (Any): The default value of the instance.
 
@@ -37,7 +37,7 @@ class Modify:
             Gets the value of the instance.
 
             Parameters:
-                self (Modify): The instance.
+                self (Modifiable): The instance.
 
             Returns:
                 The value of the instance.
@@ -49,14 +49,14 @@ class Modify:
             Allows the user to change the value of the instance with a user-friendly interface.
 
             Parameters:
-                self (Modify): The instance whose value will be changed.
+                self (Modifiable): The instance whose value will be changed.
 
             Returns:
                 Nothing
         """
         new_value: Any = ''
         branches: str = (' - '.join(branch for branch in Core.choices)) + '\n' if Core.choices else ''
-        text: str = f'{branches}{self.text} To abort, enter {Core.user.user_experience.abort}.\n'
+        text: str = f'{branches}{self.text} To abort, enter {Core.user.abort}.\n'
         while True:
             if isinstance(self.__value, bool):
                 displayed_value: str = 'Enabled' if self.__value else 'Disabled'
@@ -66,7 +66,7 @@ class Modify:
                 value_elements: str = ', '.join(element for element in self.__value)
                 value: str = f'{Core.choices[-1]}: {value_elements}'
                 chosen_choice = interface(text = f'{self.text}\n{value}', elements = [str(element) for element in self.options.keys()])
-                if chosen_choice != Core.user.user_experience.abort:
+                if chosen_choice != Core.user.abort:
                     if chosen_choice in self.__value:
                         new_value = self.__value
                         new_value.remove(chosen_choice)
@@ -74,7 +74,7 @@ class Modify:
                         new_value = self.__value
                         new_value.append(chosen_choice)
                 else:
-                    new_value = Core.user.user_experience.abort
+                    new_value = Core.user.abort
             elif isinstance(self.__value, (int, float)):
                 new_minimum: Union[int, float] = self.options['minimum'] if isinstance(self.options['minimum'], (int, float)) else 0
                 new_type: type = self.options['type'] if isinstance(self.options['type'], type) else float
@@ -85,12 +85,12 @@ class Modify:
                 value: str = f'{Core.choices[-1]}: {self.__value}'
                 if self.options:
                     new_value = interface(text = f'{self.text}\n{value}', elements = [str(element) for element in self.options.keys()])
-                    if new_value != Core.user.user_experience.abort:
+                    if new_value != Core.user.abort:
                         if self.options[new_value] != '':
                             new_value = self.options[new_value]
                 else:
                     new_value = write(text = f'{text}{Core.choices[-1]}: {self.__value}')
-            if new_value == Core.user.user_experience.abort:
+            if new_value == Core.user.abort:
                 break
             if new_value != '':
                 self.__value = new_value
@@ -114,73 +114,24 @@ class User:
         self.username: str = username
         self.__password: str = user_password
         self.role: str = user_role
-        self.__new: bool = True
-        self.user_experience: User.UserExperience = self.UserExperience()
+        self.new: bool = True
         self.applications: dict[str, Any] = {}
-        self.settings: User.Settings = self.Settings()
-        self.identity: User.Identity = self.Identity()
-
-    class Identity:
-        """
-            Stores the Account data of the account.
-        """
-
-        def __init__(self) -> None:
-            """
-                Initialises Identity account data.
-
-                Parameters:
-                    self (User.Account()): The Account data.
-
-                Returns:
-                    Nothing.
-            """
-            self.name: str = 'User'
-            self.age: int = 16
-
-    class UserExperience:
-        """
-            Stores the User Experience data of the account.
-        """
-        def __init__(self) -> None:
-            """
-                Initialises User Experience account data.
-
-                Parameters:
-                    self (User.UserExperience()): The user experience data.
-
-                Returns:
-                    Nothing.
-            """
-            self.positive: str = 'Yes'
-            self.negative: str = 'No'
-            self.next_page: str = 'Next page'
-            self.previous_page: str = 'Previous page'
-            self.abort: str = 'Abort'
-
-    class Settings:
-        """
-            Stores the Settings data of the account.
-        """
-        def __init__(self) -> None:
-            """
-                Initialises Settings account data.
-
-                Parameters:
-                    self (User.Settings()): The user account data.
-
-                Returns:
-                    Nothing.
-            """
-            self.password_reminder: bool = True
-            self.movement_keys: dict[str, list[str]] = {
-                'up': [],
-                'down': [],
-                'right': [],
-                'left': []
-            }
-            self.home_screen_order: list[Union[str, dict[str, Union[list[str], str]]]] = []
-            self.wi_fi: Modify = Modify('Connect, manage known networks, metered network.', False)
+        self.name: str = 'User'
+        self.age: int = 16
+        self.positive: str = 'Yes'
+        self.negative: str = 'No'
+        self.next_page: str = 'Next page'
+        self.previous_page: str = 'Previous page'
+        self.abort: str = 'Abort'
+        self.password_reminder: bool = True
+        self.movement_keys: dict[str, list[str]] = {
+            'up': [],
+            'down': [],
+            'right': [],
+            'left': []
+        }
+        self.home_screen_order: list[Union[str, dict[str, Union[list[str], str]]]] = []
+        self.wi_fi: Modifiable = Modifiable('Connect, manage known networks, metered network.', False)
 
     def is_password(self, entered_password: str) -> bool:
         """
@@ -205,32 +156,7 @@ class User:
             Returns:
                 The password of the current user.
         """
-        return self.__password if (Core.user.role == 'Administrator' or Core.user == self) and self.settings.password_reminder else ''
-
-    def get_new(self) -> bool:
-        """
-            Sends the state of the account, if the account is \"new\" or not.
-
-            Parameters:
-                self (User): The user account data.
-
-            Returns:
-                The state of the account.
-        """
-        return self.__new
-
-    def set_new(self) -> None:
-        """
-            To prevent malicious applications to change self.__new, only change it once.
-
-            Parameters:
-                self (User): The user account data.
-
-            Returns:
-                Nothing.
-        """
-        if self.__new:
-            self.__new = False
+        return self.__password if (Core.user.role == 'Administrator' or Core.user == self) and self.password_reminder else ''
 
 class Core:
     """
@@ -257,20 +183,12 @@ class Unique:
     lock_screen_timeout: float = 4.0
     lock_screen_time: bool = True
 
-class Characters:
-    """
-        Stores main characters, such as letters, digits and some special characters.
-    """
-    digits: list[str] = list[str]('0123456789')
-    lowercase_letters: list[str] = list[str]('abcdefghijklmnopqrstuvwxyz')
-    uppercase_letters: list[str] = list[str]('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
-    special_characters: list[str] = list[str](' !\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~')
-    characters: list[str] = [
-        *lowercase_letters,
-        *uppercase_letters,
-        *special_characters,
-        *digits
-    ]
+DIGITS: tuple[str] = tuple[str]('0123456789')
+LOWERCASES: tuple[str] = tuple[str]('abcdefghijklmnopqrstuvwxyz')
+UPPERCASES: tuple[str] = tuple[str]('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+PUNCTUATIONS: tuple[str] = tuple[str](' \"\'!:;,?./')
+SYMBOLS: tuple[str] = tuple[str]('#$%&()*+-<=>@[\\]^_`{|}~')
+CHARACTERS: tuple[str, str, str, str, str] = (*LOWERCASES, *UPPERCASES, *PUNCTUATIONS, *SYMBOLS, *DIGITS)
 
 try:
     from msvcrt import kbhit, getwch
@@ -346,7 +264,7 @@ def write(text: str) -> str:
     while True:
         show(text = f'{error}{text}')
         answer: str = input('>>> ')
-        if all(element in Characters.characters for element in answer):
+        if all(element in CHARACTERS for element in answer):
             return answer
         error = 'Input includes unrecognised character.\n'
 
@@ -381,13 +299,13 @@ def interface(text: str, elements: list[str]) -> str:
     page_index: int = 0
     elements_index: list[int] = [0]*(((len(elements)-1)//8)+1) if (not Core.indexes) or (not Core.indexes[-1]) else Core.indexes[-1]
     elements = list(elements)
-    elements.insert(0, Core.user.user_experience.abort)
+    elements.insert(0, Core.user.abort)
     while len(elements) > 0:
         pages.append([*elements[0:9]])
         del elements[0:9]
         if len(elements) > 0:
-            pages[-1].append(Core.user.user_experience.next_page)
-            elements.insert(0, Core.user.user_experience.previous_page)
+            pages[-1].append(Core.user.next_page)
+            elements.insert(0, Core.user.previous_page)
     del elements
     while True:
         current_page: list[str] = pages[page_index]
@@ -401,23 +319,23 @@ def interface(text: str, elements: list[str]) -> str:
         else:
             action: str = write(text = interface_text)
         current_page[elements_index[page_index]] = current_page[elements_index[page_index]][:-4]
-        if action in [*Characters.digits] + (['\r', '\b'] if Core.keyboard_control else ['']):
-            choice: int = int(action) if action in Characters.digits else 0 if action == '\b' else elements_index[page_index]
+        if action in [*DIGITS] + (['\r', '\b'] if Core.keyboard_control else ['']):
+            choice: int = int(action) if action in DIGITS else 0 if action == '\b' else elements_index[page_index]
             if choice == 9:
-                action = Core.user.user_experience.next_page
+                action = Core.user.next_page
             elif choice == 0:
-                action = Core.user.user_experience.abort if page_index == 0 else Core.user.user_experience.previous_page
+                action = Core.user.abort if page_index == 0 else Core.user.previous_page
             elif 1 <= choice <= 8 and choice <= len(current_page) - 1:
                 action = current_page[choice]
             else:
                 action = ''
-        if (action in [*Core.user.settings.movement_keys['right'], Core.user.user_experience.next_page]) and page_index < len(pages)-1:
+        if (action in [*Core.user.movement_keys['right'], Core.user.next_page]) and page_index < len(pages)-1:
             page_index += 1
-        elif (action in [*Core.user.settings.movement_keys['left'], Core.user.user_experience.previous_page]) and page_index > 0:
+        elif (action in [*Core.user.movement_keys['left'], Core.user.previous_page]) and page_index > 0:
             page_index -= 1
-        elif (action in Core.user.settings.movement_keys['up']) and (elements_index[page_index] > 0):
+        elif (action in Core.user.movement_keys['up']) and (elements_index[page_index] > 0):
             elements_index[page_index] -= 1
-        elif (action in Core.user.settings.movement_keys['down']) and (elements_index[page_index] < len(current_page)-1):
+        elif (action in Core.user.movement_keys['down']) and (elements_index[page_index] < len(current_page)-1):
             elements_index[page_index] += 1
         elif action in current_page:
             if Core.indexes and Core.indexes[-1] == []:
@@ -437,12 +355,12 @@ def ask(text: str) -> bool:
             The answer of the question, which is either positive or negative.
     """
     while True:
-        answer: str = interface(text = text, elements = [Core.user.user_experience.positive, Core.user.user_experience.negative])
-        if answer == Core.user.user_experience.positive:
+        answer: str = interface(text = text, elements = [Core.user.positive, Core.user.negative])
+        if answer == Core.user.positive:
             return True
-        if answer == Core.user.user_experience.negative:
+        if answer == Core.user.negative:
             return False
-        information(text = f'You must provide an answer. \"{Core.user.user_experience.abort}\" is not an option.')
+        information(text = f'You must provide an answer. \"{Core.user.abort}\" is not an option.')
 
 def menu(dictionary: dict[str, Union[str, dict[str, Any], Any]]) -> None:
     """
@@ -457,7 +375,7 @@ def menu(dictionary: dict[str, Union[str, dict[str, Any], Any]]) -> None:
     while True:
         if '.condition' in dictionary.keys() and callable(dictionary['.condition']):
             condition: Any = dictionary['.condition']()
-            if isinstance(condition, Modify):
+            if isinstance(condition, Modifiable):
                 condition = condition.value()
             if not condition:
                 information(text = 'You can not continue.' if '.checkfail' not in dictionary.keys() else str(dictionary['.checkfail']))
@@ -471,7 +389,7 @@ def menu(dictionary: dict[str, Union[str, dict[str, Any], Any]]) -> None:
                 if element not in elements:
                     elements.append(element)
         selected_value: str = interface(text = menu_text, elements = elements)
-        if selected_value == Core.user.user_experience.abort:
+        if selected_value == Core.user.abort:
             break
         selected_action: Any = dictionary[selected_value]
         with indexation(choice = selected_value):
@@ -484,7 +402,7 @@ def menu(dictionary: dict[str, Union[str, dict[str, Any], Any]]) -> None:
                 information(text = selected_action)
             elif callable(selected_action):
                 result: Any = selected_action()
-                if isinstance(result, Modify):
+                if isinstance(result, Modifiable):
                     result.modify()
             else:
                 information(text = 'Unrecognised action.')
@@ -504,10 +422,10 @@ def quantify(text: str, minimum: Union[int, float], category: type, maximum: Uni
     """
     while True:
         number: str = write(text = text)
-        if number == Core.user.user_experience.abort:
-            return Core.user.user_experience.abort
+        if number == Core.user.abort:
+            return Core.user.abort
         if number and ((category == int and '.' not in number) or (len(number.split('.')) == 2 and category == float)):
-            if all(digit in Characters.digits for digit in (number.removeprefix('-') if number[0] == '-' else number).replace('.', '')):
+            if all(digit in DIGITS for digit in (number.removeprefix('-') if number[0] == '-' else number).replace('.', '')):
                 if minimum <= category(number) <= maximum:
                     return category(number)
                 information(text = 'Number out of range.')
@@ -532,14 +450,14 @@ def password(username: str) -> bool:
         return True
     tries: int = 0
     while True:
-        answer: str = write(text = f'Enter the password of {username} for security, or \"{Core.user.user_experience.abort}\" to abort.')
-        if answer == Core.user.user_experience.abort:
+        answer: str = write(text = f'Enter the password of {username} for security, or \"{Core.user.abort}\" to abort.')
+        if answer == Core.user.abort:
             return False
         if Core.users[username].is_password(entered_password = answer):
             return True
         if answer:
             information(text = 'The password is incorrect.')
-            if Core.users[username].settings.password_reminder:
+            if Core.users[username].password_reminder:
                 information(text = f'The password of the account is {Core.users[username].get_password()} to remind you.')
             tries += 1
             if tries >= 4:
@@ -557,7 +475,7 @@ if __name__ == '__main__':
         while True:
             write(text = f'Enter to turn on {Unique.device_name}.')
             time: str = datetime.now().strftime('%A %d %B %Y' + (', %H:%M:%S' if Unique.lock_screen_time else ''))
-            string: str = f'{time}\nEnter anything to continue, or \"{Core.user.user_experience.abort}\"'
+            string: str = f'{time}\nEnter anything to continue, or \"{Core.user.abort}\"'
             if Core.keyboard_control:
                 user_input: str = ''
                 time_left: float = Unique.lock_screen_timeout
@@ -572,7 +490,7 @@ if __name__ == '__main__':
                             break
                         if character == '\b':
                             user_input = user_input[0:-1]
-                        elif character in Characters.characters:
+                        elif character in CHARACTERS:
                             user_input += character
                         else:
                             information(text = 'Invalid character.')
@@ -581,29 +499,29 @@ if __name__ == '__main__':
                     sleep(0.01)
             else:
                 user_input: str = write(text =  f'{string} to turn off {Unique.device_name}.')
-            if user_input not in (Core.user.user_experience.abort, ''):
+            if user_input not in (Core.user.abort, ''):
                 break
         user_text: str = 'Enter the user you want to log in, or \"Create account\" to create an account, or '
         while True:
-            current_user: str = write(text = f'{user_text}\"{Core.user.user_experience.abort}\" to turn off {Unique.device_name}.')
-            if current_user == Core.user.user_experience.abort:
+            current_user: str = write(text = f'{user_text}\"{Core.user.abort}\" to turn off {Unique.device_name}.')
+            if current_user == Core.user.abort:
                 break
             if current_user in Core.users and password(username = current_user):
                 Core.user = Core.users[Core.users[current_user].username]
-                if Core.user.get_new():
+                if Core.user.new:
                     information(text = f'Welcome to SuperOSh, {Core.user.username}!')
                     information(text = 'Let us get you started quickly. Answer to a few questions first before accessing SuperOSh.')
-                    for keybind in Core.user.settings.movement_keys:
+                    for keybind in Core.user.movement_keys:
                         while True:
                             mark: str = write(text = f'Which key should be assigned to the action \"{keybind}\"?')
-                            if len(mark) != 1 or any(any(key == mark for key in keys) for keys in Core.user.settings.movement_keys.values()):
+                            if len(mark) != 1 or any(any(key == mark for key in keys) for keys in Core.user.movement_keys.values()):
                                 information(text = 'The key should only be a single letter')
                             else:
-                                Core.user.settings.movement_keys[keybind] = [mark.lower(), mark.upper()]
+                                Core.user.movement_keys[keybind] = [mark.lower(), mark.upper()]
                                 break
-                    Core.user.set_new()
+                    Core.user.new = False
                     information(text = 'In interfaces menus, you can press the corresponding key to do the corresponding action.')
-                    for action_name, key in Core.user.settings.movement_keys.items():
+                    for action_name, key in Core.user.movement_keys.items():
                         information(text = f'Enter \"{key[0]}\" or \"{key[1]}\" to do {action_name}.')
                     information(text = 'Thank you for choosing SuperOSh!')
                 for file in Path(__file__).parent.glob('*_application.py'):
@@ -642,13 +560,13 @@ if __name__ == '__main__':
                     if application_module['name'] in Core.applications:
                         continue
                     for user in Core.users.values():
-                        user.settings.home_screen_order.append(application_module['name'])
+                        user.home_screen_order.append(application_module['name'])
                         if 'initialisation' in application_module and isinstance(application_module['initialisation'], dict):
                             user.applications[application_module['name']] = deepcopy(application_module['initialisation'])
                         if hasattr(module, 'on_load'):
                             module.on_load()
                     Core.applications[application_module['name']] = application_module
-                current_order: list[Union[str, dict[str, Union[list[str], str]]]] = list(Core.user.settings.home_screen_order)
+                current_order: list[Union[str, dict[str, Union[list[str], str]]]] = list(Core.user.home_screen_order)
                 folder_stack: list[tuple[str, list[Union[str, dict[str, Union[list[str], str]]]]]] = []
                 title: str = f'Hello, {Core.user.username}!'
                 temporary_index: list[int] = []
@@ -670,12 +588,12 @@ if __name__ == '__main__':
                     application_choice: str = interface(text = title, elements = choices)
                     temporary_index = Core.indexes[-1]
                     Core.indexes = []
-                    if application_choice == Core.user.user_experience.abort:
+                    if application_choice == Core.user.abort:
                         if not folder_stack:
                             break
                         title, current_order = folder_stack.pop()
                     elif application_choice in applications:
-                        if Core.applications[applications[application_choice]]['age'] > Core.user.identity.age:
+                        if Core.applications[applications[application_choice]]['age'] > Core.user.age:
                             information(text = 'You do not have the required age to use this application.')
                             continue
                         with indexation(choice = application_choice):
@@ -697,8 +615,8 @@ if __name__ == '__main__':
                             break
             elif current_user == 'Create account':
                 while True:
-                    new_username: str = write(text = f'What will be the username? Enter \"{Core.user.user_experience.abort}\" to cancel.')
-                    if new_username == Core.user.user_experience.abort:
+                    new_username: str = write(text = f'What will be the username? Enter \"{Core.user.abort}\" to cancel.')
+                    if new_username == Core.user.abort:
                         break
                     if new_username in Core.users:
                         information(text = 'This username is already taken.')
@@ -713,7 +631,7 @@ if __name__ == '__main__':
                             if new_password != '' and write(text = 'Enter again your password for security.') == new_password:
                                 new_user: User = User(username = new_username, user_password = new_password, user_role = account_role)
                                 for the_application_name, application in Core.applications.items():
-                                    new_user.settings.home_screen_order.append(the_application_name)
+                                    new_user.home_screen_order.append(the_application_name)
                                     new_user.applications[the_application_name] = deepcopy(application.get('initialisation'))
                                 Core.users[new_username] = new_user
                                 break
